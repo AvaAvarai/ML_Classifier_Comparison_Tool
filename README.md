@@ -14,6 +14,11 @@ This is to benchmark the performance of various machine learning classifiers on 
 - Run the comparison and view the results in a table.
 - Export the results to a CSV file.
 
+## Todo
+
+- [ ] Add more classifiers
+- [ ] Add seperate training and testing data
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
