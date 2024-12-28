@@ -1,8 +1,8 @@
-# Machine Learning Classifier Comparison GUI Application
+# Machine Learning Classifier Comparison Tool
 
 ![image](image.png)
 
-This application is a GUI for comparing the performance of various machine learning classifiers on a dataset. It allows you to load a dataset, select a classifier, and configure various parameters to run the comparison. The results are displayed in a table and can be exported to a CSV file.
+This application is a GUI tool for comparing the performance of various machine learning classifiers on a dataset. It allows you to load a dataset, select a classifier, and configure various parameters to run the comparison. The results are displayed in a table and can be exported to a CSV file.
 
 This is to benchmark the performance of various machine learning classifiers on a dataset, and to compare the performance under data synthesization and data augmentation. With the results, we can choose the best classifier for the dataset, tune the hyperparameters, observe robustness under different data splits, and choose the best data synthesization and augmentation methods.
 
