@@ -2,7 +2,7 @@
 
 ![image](image.png)
 
-This application is a GUI tool for comparing the performance of various machine learning classifiers on a dataset. It allows you to load a dataset, select a classifier, and configure various parameters to run the comparison. The results are displayed in a table and can be exported to a CSV file.
+Machine Learning Classifier Comparison Tool is for comparing the performance of various machine learning classifiers on a dataset. It allows you to load a dataset, select the classifier(s), and configure hyperparameter(s), then to run the comparison with cross fold validation, selected random seed, and number of runs. The results are displayed in a table and can be exported to a CSV file.
 
 This is to benchmark the performance of various machine learning classifiers on a dataset, and to compare the performance under data synthesization and data augmentation. With the results, we can choose the best classifier for the dataset, tune the hyperparameters, observe robustness under different data splits, and choose the best data synthesization and augmentation methods.
 
@@ -16,7 +16,6 @@ This is to benchmark the performance of various machine learning classifiers on 
 
 ## Todo
 
-- [ ] Add more classifiers
 - [ ] Add seperate training and testing data
 
 ## License
