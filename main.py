@@ -6,7 +6,7 @@ import random
 import warnings
 
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import cross_val_score, KFold
+from sklearn.model_selection import cross_val_score, KFold, cross_validate
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
@@ -496,19 +496,26 @@ class ClassifierApp:
     # Tab 4: Results
     # ------------------------------------------------------------------------
     def build_results_tab(self):
-        # Table for results
         self.results_table = ttk.Treeview(
             self.results_tab,
-            columns=("Classifier", "Best", "Worst", "Average", "Std Dev"),
+            columns=(
+                "Classifier",
+                # Accuracy
+                "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
+                # F1
+                "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
+                # Recall
+                "REC Best", "REC Worst", "REC Avg", "REC Std"
+            ),
             show="headings",
             height=10
         )
-        for col in self.results_table['columns']:
+        for col in self.results_table["columns"]:
             self.results_table.heading(col, text=col)
             self.results_table.column(col, width=100, anchor=tk.CENTER)
+
         self.results_table.pack(fill=tk.BOTH, expand=True, pady=10, padx=5)
 
-        # Export button
         self.export_button = tk.Button(
             self.results_tab,
             text="Export to CSV",
@@ -539,9 +546,8 @@ class ClassifierApp:
             X = self.data.drop(columns=self.class_column)
             y = self.data[self.class_column]
 
-            # ---------------------------------------------------------------------
-            # AUTOMATIC LABEL ENCODING IF CLASSES ARE STRINGS
-            # ---------------------------------------------------------------------
+            # OPTIONAL: Label-encode if target is strings
+            from sklearn.preprocessing import LabelEncoder
             if y.dtype == object or y.dtype.kind in {'U', 'S'}:
                 le = LabelEncoder()
                 y = le.fit_transform(y)
@@ -549,17 +555,18 @@ class ClassifierApp:
             self.results = []
             any_convergence_issue = False
 
-            # For each selected classifier, parse hyperparams and run
             for clf_name, var in self.selected_classifiers.items():
                 if not var.get():
                     continue
 
-                # Build the classifier with the hyperparams from UI
                 hyperparams = self.parse_hyperparams(clf_name)
                 classifier = self.build_classifier(clf_name, hyperparams, random_seed)
 
-                accuracies = []
-                # Catch warnings about convergence
+                # We'll keep the same approach of looping over 'run_count'
+                accuracy_scores = []
+                f1_scores = []
+                recall_scores = []
+
                 with warnings.catch_warnings(record=True) as w:
                     warnings.simplefilter("always", ConvergenceWarning)
 
@@ -569,22 +576,65 @@ class ClassifierApp:
                         np.random.seed(seed_for_run)
 
                         cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
-                        scores = cross_val_score(classifier, X, y, cv=cv, scoring='accuracy')
-                        accuracies.extend(scores)
+
+                        # We gather multiple metrics with cross_validate
+                        scores = cross_validate(
+                            classifier,
+                            X,
+                            y,
+                            cv=cv,
+                            scoring={
+                                'acc': 'accuracy',
+                                'f1': 'f1_macro',       # or 'f1_weighted' if you prefer
+                                'rec': 'recall_macro'   # likewise 'recall_weighted'
+                            },
+                            n_jobs=None,  # or -1 to use all cores
+                            return_train_score=False
+                        )
+
+                        # This yields arrays of fold-wise scores
+                        accuracy_scores.extend(scores['test_acc'])
+                        f1_scores.extend(scores['test_f1'])
+                        recall_scores.extend(scores['test_rec'])
 
                     # Check if any ConvergenceWarning was raised
                     for warning_msg in w:
                         if issubclass(warning_msg.category, ConvergenceWarning):
                             any_convergence_issue = True
 
-                best = max(accuracies)
-                worst = min(accuracies)
-                average = np.mean(accuracies)
-                std_dev = np.std(accuracies)
+                # ---------------------------------------------------------
+                #  Keep best/worst/avg/std for ACCURACY (original logic)
+                # ---------------------------------------------------------
+                best_acc = max(accuracy_scores)
+                worst_acc = min(accuracy_scores)
+                avg_acc = np.mean(accuracy_scores)
+                std_acc = np.std(accuracy_scores)
 
-                self.results.append((clf_name, best, worst, average, std_dev))
+                # ---------------------------------------------------------
+                #  ALSO compute best/worst/avg/std for F1 and Recall
+                # ---------------------------------------------------------
+                best_f1 = max(f1_scores)
+                worst_f1 = min(f1_scores)
+                avg_f1 = np.mean(f1_scores)
+                std_f1 = np.std(f1_scores)
 
-            # If at least one ConvergenceWarning was encountered, show a friendly info message
+                best_rec = max(recall_scores)
+                worst_rec = min(recall_scores)
+                avg_rec = np.mean(recall_scores)
+                std_rec = np.std(recall_scores)
+
+                # Store everything in self.results
+                self.results.append((
+                    clf_name,
+                    # Accuracy
+                    best_acc, worst_acc, avg_acc, std_acc,
+                    # F1
+                    best_f1, worst_f1, avg_f1, std_f1,
+                    # Recall
+                    best_rec, worst_rec, avg_rec, std_rec
+                ))
+
+            # If at least one ConvergenceWarning encountered, show notice
             if any_convergence_issue:
                 messagebox.showinfo(
                     "Convergence Notice",
@@ -726,19 +776,42 @@ class ClassifierApp:
     # Results table
     # ------------------------------------------------------------------------
     def update_results_table(self):
+        # Clear old rows
         for row in self.results_table.get_children():
             self.results_table.delete(row)
 
-        for result in self.results:
-            clf_name, best, worst, average, std_dev = result
-            formatted_result = (
+        # Each tuple in self.results is:
+        # (
+        #   clf_name,
+        #   best_acc, worst_acc, avg_acc, std_acc,
+        #   best_f1,  worst_f1,  avg_f1,  std_f1,
+        #   best_rec, worst_rec, avg_rec, std_rec
+        # )
+        for res in self.results:
+            (
                 clf_name,
-                f"{best:.4f}",
-                f"{worst:.4f}",
-                f"{average:.4f}",
-                f"{std_dev:.4f}"
+                best_acc, worst_acc, avg_acc, std_acc,
+                best_f1, worst_f1, avg_f1, std_f1,
+                best_rec, worst_rec, avg_rec, std_rec
+            ) = res
+
+            # Format each value nicely, e.g., 4 decimals
+            row_values = (
+                clf_name,
+                f"{best_acc:.4f}",
+                f"{worst_acc:.4f}",
+                f"{avg_acc:.4f}",
+                f"{std_acc:.4f}",
+                f"{best_f1:.4f}",
+                f"{worst_f1:.4f}",
+                f"{avg_f1:.4f}",
+                f"{std_f1:.4f}",
+                f"{best_rec:.4f}",
+                f"{worst_rec:.4f}",
+                f"{avg_rec:.4f}",
+                f"{std_rec:.4f}"
             )
-            self.results_table.insert("", "end", values=formatted_result)
+            self.results_table.insert("", "end", values=row_values)
 
     def export_results(self):
         if not self.results:
