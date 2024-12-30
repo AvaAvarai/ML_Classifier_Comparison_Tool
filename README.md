@@ -16,7 +16,7 @@ This is to benchmark the performance of various machine learning classifiers on 
 
 ## Todo
 
-- [ ] Add seperate training and testing data
+- [ ] Visualize the results in a graph in Parallel Coordinates.
 
 ## License
 

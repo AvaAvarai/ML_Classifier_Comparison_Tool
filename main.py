@@ -6,7 +6,11 @@ import random
 import warnings
 
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import cross_val_score, KFold, cross_validate
+from sklearn.model_selection import cross_validate, KFold
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.metrics import accuracy_score, f1_score, recall_score
+
+# Classifiers
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
@@ -20,12 +24,8 @@ from sklearn.ensemble import (
 )
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.neural_network import MLPClassifier
-
-# XGBoost
 from xgboost import XGBClassifier
 
-# For capturing convergence warnings
-from sklearn.exceptions import ConvergenceWarning
 from tkinter import ttk
 
 class ClassifierApp:
@@ -36,25 +36,28 @@ class ClassifierApp:
         # Data holders
         self.data = None
         self.class_column = None
+
+        # Optional evaluation data
+        self.eval_data = None
+        self.eval_class_column = None
+
+        # For storing results
         self.results = []
 
         # Main Notebook for tabs
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
-        # Tab: File loading and dataset info
+        # Tabs
         self.file_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.file_frame, text="Data")
 
-        # Tab: Classifier selection
         self.classifiers_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.classifiers_frame, text="Classifiers")
 
-        # Tab: Hyperparameters
         self.params_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.params_tab, text="Parameters")
 
-        # Tab: Results
         self.results_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.results_tab, text="Results")
 
@@ -68,14 +71,25 @@ class ClassifierApp:
     # Tab 1: File loading and info
     # ------------------------------------------------------------------------
     def build_file_tab(self):
-        # File label and load button
+        # Main file label and load button
         self.file_label = tk.Label(self.file_frame, text="No file loaded")
         self.file_label.pack(pady=5)
 
-        self.load_button = tk.Button(self.file_frame, text="Load File", command=self.load_file)
+        self.load_button = tk.Button(
+            self.file_frame, text="Load File", command=self.load_file
+        )
         self.load_button.pack(pady=5)
 
-        # Info text
+        # Evaluation file label and load button
+        self.eval_label = tk.Label(self.file_frame, text="No evaluate file loaded")
+        self.eval_label.pack(pady=5)
+
+        self.eval_button = tk.Button(
+            self.file_frame, text="Load Evaluate File", command=self.load_eval_file
+        )
+        self.eval_button.pack(pady=5)
+
+        # Info text (shows main data info only)
         self.info_text = tk.Text(self.file_frame, height=10, state=tk.DISABLED, wrap=tk.WORD)
         self.info_text.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
@@ -86,21 +100,33 @@ class ClassifierApp:
 
         try:
             self.data = pd.read_csv(file_path)
-            self.class_column = self.find_class_column()
-            self.display_dataset_info()
+            self.class_column = self.find_class_column(self.data)
+            self.display_dataset_info(self.data, self.class_column)
             self.file_label.config(text=f"Loaded: {file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load file: {e}")
 
-    def find_class_column(self):
-        for col in self.data.columns:
+    def load_eval_file(self):
+        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+        if not file_path:
+            return
+
+        try:
+            self.eval_data = pd.read_csv(file_path)
+            self.eval_class_column = self.find_class_column(self.eval_data)
+            self.eval_label.config(text=f"Loaded eval data: {file_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load eval file: {e}")
+
+    def find_class_column(self, df):
+        for col in df.columns:
             if "class" in col.lower():
                 return col
         raise ValueError("No column with 'class' found.")
 
-    def display_dataset_info(self):
-        class_counts = self.data[self.class_column].value_counts()
-        total_cases = len(self.data)
+    def display_dataset_info(self, df, class_col):
+        class_counts = df[class_col].value_counts()
+        total_cases = len(df)
         num_classes = len(class_counts)
         balance_ratio = class_counts.min() / class_counts.max() if class_counts.max() != 0 else 0
 
@@ -111,10 +137,10 @@ class ClassifierApp:
             f"Number of Classes: {num_classes}\n"
             f"Class Balance: {'Balanced' if abs(balance_ratio - 1.0) < 1e-9 else 'Not Balanced'} "
             f"(Ratio: {balance_ratio:.2f})\n"
-            f"Number of Features: {len(self.data.columns) - 1}\n"  # -1 to exclude class column
-            f"Features: {[col for col in self.data.columns if col != self.class_column]}\n"
+            f"Number of Features: {len(df.columns) - 1}\n"
+            f"Features: {[col for col in df.columns if col != class_col]}\n"
             f"Missing Values: "
-            f"{'none' if self.data.isnull().sum().sum() == 0 else f'contains missing values ({self.data.isnull().sum().sum()})'}"
+            f"{'none' if df.isnull().sum().sum() == 0 else f'contains missing values ({df.isnull().sum().sum()})'}"
         )
 
         self.info_text.config(state=tk.NORMAL)
@@ -135,7 +161,6 @@ class ClassifierApp:
         bottom_frame = ttk.Frame(self.classifiers_frame)
         bottom_frame.pack(fill=tk.X, pady=5)
 
-        # Classifiers in the order requested:
         classifiers_row1 = [
             "Decision Tree",
             "Random Forest",
@@ -155,21 +180,21 @@ class ClassifierApp:
             "XGBoost",
         ]
 
-        # Add row1 checkboxes
+        # Row1
         for i, clf_name in enumerate(classifiers_row1):
             var = tk.BooleanVar(value=False)
             chk = tk.Checkbutton(top_frame, text=clf_name, variable=var)
             chk.grid(row=0, column=i, padx=5, pady=5, sticky=tk.W)
             self.selected_classifiers[clf_name] = var
 
-        # Add row2 checkboxes
+        # Row2
         for i, clf_name in enumerate(classifiers_row2):
             var = tk.BooleanVar(value=False)
             chk = tk.Checkbutton(bottom_frame, text=clf_name, variable=var)
             chk.grid(row=1, column=i, padx=5, pady=5, sticky=tk.W)
             self.selected_classifiers[clf_name] = var
 
-        # Common training params
+        # Common CV parameters
         common_params_frame = ttk.LabelFrame(self.classifiers_frame, text="Common CV Parameters")
         common_params_frame.pack(fill=tk.X, pady=10, padx=5)
 
@@ -189,7 +214,7 @@ class ClassifierApp:
             default=str(random.randint(0, 10**6))
         )
 
-        # Button to run
+        # Run button
         self.run_button = tk.Button(
             self.classifiers_frame,
             text="Run Selected Classifiers",
@@ -197,7 +222,6 @@ class ClassifierApp:
         )
         self.run_button.pack(pady=5)
 
-    # Helper for creating labeled entries (for cross_val_split, run_count, random_seed)
     def add_param_entry(self, parent, label, default):
         frame = ttk.Frame(parent)
         frame.pack(fill=tk.X, pady=2)
@@ -215,27 +239,17 @@ class ClassifierApp:
     # Tab 3: Hyperparameter controls
     # ------------------------------------------------------------------------
     def build_params_tab(self):
-        """
-        Creates a scrollable frame with hyperparameter inputs.
-        For non-numeric discrete choices, we provide a dropdown (Combobox).
-        For numeric inputs, we provide an Entry plus a short label indicating suggested range/meaning.
-        """
-        # Create a Canvas + Scrollbar for the hyperparam entries
         canvas = tk.Canvas(self.params_tab)
         scrollbar = ttk.Scrollbar(self.params_tab, orient="vertical", command=canvas.yview)
         scroll_frame = ttk.Frame(canvas)
 
-        scroll_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Parameter definitions: type, default, help, [options] for combos
         self.param_config = {
             "Decision Tree": {
                 "criterion": {
@@ -375,7 +389,6 @@ class ClassifierApp:
                     "default": "0.0001",
                     "help": "L2 penalty parameter"
                 },
-                # Expose max_iter in the GUI
                 "max_iter": {
                     "type": "numeric",
                     "default": "200",
@@ -450,8 +463,6 @@ class ClassifierApp:
         }
 
         self.hyperparam_entries = {}
-        row_idx = 0
-
         for clf_name, param_dict in self.param_config.items():
             group = ttk.LabelFrame(scroll_frame, text=clf_name)
             group.pack(fill=tk.X, padx=5, pady=5)
@@ -486,21 +497,22 @@ class ClassifierApp:
                     entry.pack(side=tk.LEFT, padx=5)
                     self.hyperparam_entries[clf_name][param_name] = entry
 
-                # Add small help text / range note
                 help_label = ttk.Label(row_frame, text=f"({param_help})", foreground="gray")
                 help_label.pack(side=tk.LEFT, padx=5)
-
-            row_idx += 1
 
     # ------------------------------------------------------------------------
     # Tab 4: Results
     # ------------------------------------------------------------------------
     def build_results_tab(self):
+        """
+        We'll keep columns for best/worst/avg/std for accuracy, F1, recall.
+        This remains the same structure for either main-data CV or eval-data CV.
+        """
         self.results_table = ttk.Treeview(
             self.results_tab,
             columns=(
                 "Classifier",
-                # Accuracy
+                # ACC
                 "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
                 # F1
                 "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
@@ -510,9 +522,10 @@ class ClassifierApp:
             show="headings",
             height=10
         )
+
         for col in self.results_table["columns"]:
             self.results_table.heading(col, text=col)
-            self.results_table.column(col, width=100, anchor=tk.CENTER)
+            self.results_table.column(col, width=110, anchor=tk.CENTER)
 
         self.results_table.pack(fill=tk.BOTH, expand=True, pady=10, padx=5)
 
@@ -528,7 +541,7 @@ class ClassifierApp:
     # ------------------------------------------------------------------------
     def run_classifiers(self):
         if self.data is None:
-            messagebox.showerror("Error", "No dataset loaded.")
+            messagebox.showerror("Error", "No main dataset loaded.")
             return
 
         try:
@@ -542,19 +555,28 @@ class ClassifierApp:
 
             random_seed = int(self.random_seed.get())
 
-            # Prepare feature/target
-            X = self.data.drop(columns=self.class_column)
-            y = self.data[self.class_column]
+            # Main data
+            X_main = self.data.drop(columns=self.class_column)
+            y_main = self.data[self.class_column]
 
-            # OPTIONAL: Label-encode if target is strings
-            from sklearn.preprocessing import LabelEncoder
-            if y.dtype == object or y.dtype.kind in {'U', 'S'}:
-                le = LabelEncoder()
-                y = le.fit_transform(y)
+            # Label-encode main data if needed
+            if y_main.dtype == object or y_main.dtype.kind in {'U', 'S'}:
+                self.label_encoder = LabelEncoder()
+                y_main = self.label_encoder.fit_transform(y_main)
+
+            # Check if we have optional eval data
+            use_eval = (self.eval_data is not None)
+            if use_eval:
+                X_eval = self.eval_data.drop(columns=self.eval_class_column)
+                y_eval = self.eval_data[self.eval_class_column]
+                # Encode eval data with same encoder
+                if y_eval.dtype == object or y_eval.dtype.kind in {'U', 'S'}:
+                    y_eval = self.label_encoder.transform(y_eval)
 
             self.results = []
             any_convergence_issue = False
 
+            # Loop through chosen classifiers
             for clf_name, var in self.selected_classifiers.items():
                 if not var.get():
                     continue
@@ -562,7 +584,6 @@ class ClassifierApp:
                 hyperparams = self.parse_hyperparams(clf_name)
                 classifier = self.build_classifier(clf_name, hyperparams, random_seed)
 
-                # We'll keep the same approach of looping over 'run_count'
                 accuracy_scores = []
                 f1_scores = []
                 recall_scores = []
@@ -570,49 +591,69 @@ class ClassifierApp:
                 with warnings.catch_warnings(record=True) as w:
                     warnings.simplefilter("always", ConvergenceWarning)
 
-                    for run in range(run_count):
-                        seed_for_run = random_seed + run
-                        random.seed(seed_for_run)
+                    for run_i in range(run_count):
+                        seed_for_run = random_seed + run_i
                         np.random.seed(seed_for_run)
+                        random.seed(seed_for_run)
 
-                        cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
+                        if not use_eval:
+                            # =================================================
+                            # No eval data -> cross-validation on main data
+                            # =================================================
+                            cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
+                            scores = cross_validate(
+                                classifier,
+                                X_main,
+                                y_main,
+                                cv=cv,
+                                scoring={'acc': 'accuracy', 'f1': 'f1_macro', 'rec': 'recall_macro'},
+                                return_train_score=False
+                            )
+                            accuracy_scores.extend(scores['test_acc'])
+                            f1_scores.extend(scores['test_f1'])
+                            recall_scores.extend(scores['test_rec'])
 
-                        # We gather multiple metrics with cross_validate
-                        scores = cross_validate(
-                            classifier,
-                            X,
-                            y,
-                            cv=cv,
-                            scoring={
-                                'acc': 'accuracy',
-                                'f1': 'f1_macro',       # or 'f1_weighted' if you prefer
-                                'rec': 'recall_macro'   # likewise 'recall_weighted'
-                            },
-                            n_jobs=None,  # or -1 to use all cores
-                            return_train_score=False
-                        )
+                        else:
+                            # =================================================
+                            # If eval data is loaded -> cross-validation on EVAL data,
+                            # training on ALL main data for each fold.
+                            # =================================================
+                            cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
+                            idxs = np.arange(len(X_eval))
 
-                        # This yields arrays of fold-wise scores
-                        accuracy_scores.extend(scores['test_acc'])
-                        f1_scores.extend(scores['test_f1'])
-                        recall_scores.extend(scores['test_rec'])
+                            for train_idx, test_idx in cv.split(idxs):
+                                # train_idx is normally the portion of EVAL data for "training" in normal CV,
+                                # but we ignore that: we always train on the main dataset.
+                                # We only use test_idx to pick the portion of eval data to test on.
+                                X_eval_fold = X_eval.iloc[test_idx]
+                                y_eval_fold = y_eval[test_idx]
 
-                    # Check if any ConvergenceWarning was raised
+                                # train on full main data
+                                classifier.random_state = seed_for_run
+                                classifier.fit(X_main, y_main)
+
+                                # test on this fold of eval data
+                                preds = classifier.predict(X_eval_fold)
+
+                                acc_ = accuracy_score(y_eval_fold, preds)
+                                f1_ = f1_score(y_eval_fold, preds, average='macro')
+                                rec_ = recall_score(y_eval_fold, preds, average='macro')
+
+                                accuracy_scores.append(acc_)
+                                f1_scores.append(f1_)
+                                recall_scores.append(rec_)
+
+                    # Check for any convergence warnings
                     for warning_msg in w:
                         if issubclass(warning_msg.category, ConvergenceWarning):
                             any_convergence_issue = True
 
-                # ---------------------------------------------------------
-                #  Keep best/worst/avg/std for ACCURACY (original logic)
-                # ---------------------------------------------------------
+                # Compute best/worst/avg/std
                 best_acc = max(accuracy_scores)
                 worst_acc = min(accuracy_scores)
                 avg_acc = np.mean(accuracy_scores)
                 std_acc = np.std(accuracy_scores)
 
-                # ---------------------------------------------------------
-                #  ALSO compute best/worst/avg/std for F1 and Recall
-                # ---------------------------------------------------------
                 best_f1 = max(f1_scores)
                 worst_f1 = min(f1_scores)
                 avg_f1 = np.mean(f1_scores)
@@ -623,18 +664,14 @@ class ClassifierApp:
                 avg_rec = np.mean(recall_scores)
                 std_rec = np.std(recall_scores)
 
-                # Store everything in self.results
+                # Append final results
                 self.results.append((
                     clf_name,
-                    # Accuracy
                     best_acc, worst_acc, avg_acc, std_acc,
-                    # F1
                     best_f1, worst_f1, avg_f1, std_f1,
-                    # Recall
                     best_rec, worst_rec, avg_rec, std_rec
                 ))
 
-            # If at least one ConvergenceWarning encountered, show notice
             if any_convergence_issue:
                 messagebox.showinfo(
                     "Convergence Notice",
@@ -651,9 +688,6 @@ class ClassifierApp:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
     def parse_hyperparams(self, clf_name):
-        """
-        Reads the hyperparameter widgets for the given classifier name.
-        """
         param_values = {}
         config = self.param_config[clf_name]
         for param_name, widget in self.hyperparam_entries[clf_name].items():
@@ -662,13 +696,12 @@ class ClassifierApp:
             raw_val = widget.get().strip()
 
             if param_type == "combo":
-                # Directly use selected string
                 param_values[param_name] = raw_val
             elif param_type in ["numeric", "text"]:
                 if raw_val.lower() == "none":
                     param_values[param_name] = None
                 else:
-                    # Try integer
+                    # Try int
                     try:
                         param_values[param_name] = int(raw_val)
                         continue
@@ -680,23 +713,19 @@ class ClassifierApp:
                         continue
                     except ValueError:
                         pass
-                    # If parentheses => treat as eval (for tuples)
+                    # If parentheses => evaluate
                     if raw_val.startswith("(") or raw_val.startswith("["):
                         try:
                             param_values[param_name] = eval(raw_val)
                             continue
                         except:
                             pass
-                    # Otherwise, store string
+                    # Otherwise store string
                     param_values[param_name] = raw_val
-
         return param_values
 
     def build_classifier(self, clf_name, hyperparams, random_seed):
-        """
-        Instantiate the classifier with the parsed hyperparameters.
-        We also pass in 'random_state' if relevant to that classifier.
-        """
+        """Instantiate the classifier with the parsed hyperparameters."""
         if clf_name == "Decision Tree":
             return DecisionTreeClassifier(
                 random_state=random_seed,
@@ -784,7 +813,7 @@ class ClassifierApp:
         # (
         #   clf_name,
         #   best_acc, worst_acc, avg_acc, std_acc,
-        #   best_f1,  worst_f1,  avg_f1,  std_f1,
+        #   best_f1, worst_f1, avg_f1, std_f1,
         #   best_rec, worst_rec, avg_rec, std_rec
         # )
         for res in self.results:
@@ -795,7 +824,6 @@ class ClassifierApp:
                 best_rec, worst_rec, avg_rec, std_rec
             ) = res
 
-            # Format each value nicely, e.g., 4 decimals
             row_values = (
                 clf_name,
                 f"{best_acc:.4f}",
@@ -825,7 +853,14 @@ class ClassifierApp:
         if not file_path:
             return
 
-        df = pd.DataFrame(self.results, columns=["Classifier", "Best", "Worst", "Average", "Std Dev"])
+        # Basic example of exporting the results (only the accuracy columns in original code),
+        # but you could export all columns easily by building a DataFrame with them.
+        df = pd.DataFrame(self.results, columns=[
+            "Classifier",
+            "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
+            "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
+            "REC Best", "REC Worst", "REC Avg", "REC Std"
+        ])
         df.to_csv(file_path, index=False)
         messagebox.showinfo("Success", "Results exported successfully.")
 
@@ -833,24 +868,18 @@ class ClassifierApp:
 if __name__ == "__main__":
     root = tk.Tk()
 
-    # Define a small utility function to center the window.
+    # Center the window
     def center_window(win):
-        win.update_idletasks()   # Make sure we have the correct window dimensions
+        win.update_idletasks()
         width = win.winfo_width()
         height = win.winfo_height()
-
         screen_width = win.winfo_screenwidth()
         screen_height = win.winfo_screenheight()
 
         x = (screen_width // 2) - (width // 2)
         y = (screen_height // 2) - (height // 2)
-
-        # Position the window at the center of the screen
         win.geometry(f"+{x}+{y}")
 
     app = ClassifierApp(root)
-
-    # Now center the main window
     center_window(root)
-
     root.mainloop()
