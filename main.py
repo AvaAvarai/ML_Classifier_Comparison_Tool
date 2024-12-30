@@ -200,7 +200,7 @@ class ClassifierApp:
 
         self.cross_val_split = self.add_param_entry(
             parent=common_params_frame,
-            label="Cross-Validation Split (>=2):",
+            label="Cross-Validation Split (>=1, 1 is no CV):",
             default="5"
         )
         self.run_count = self.add_param_entry(
@@ -546,8 +546,8 @@ class ClassifierApp:
 
         try:
             num_splits = int(self.cross_val_split.get())
-            if num_splits < 2:
-                raise ValueError("Cross-validation splits must be at least 2")
+            if num_splits < 1:
+                raise ValueError("Cross-validation splits must be at least 1")
 
             run_count = int(self.run_count.get())
             if run_count < 1:
@@ -576,7 +576,6 @@ class ClassifierApp:
             self.results = []
             any_convergence_issue = False
 
-            # Loop through chosen classifiers
             for clf_name, var in self.selected_classifiers.items():
                 if not var.get():
                     continue
@@ -596,59 +595,76 @@ class ClassifierApp:
                         np.random.seed(seed_for_run)
                         random.seed(seed_for_run)
 
-                        if not use_eval:
+                        if num_splits == 1:
                             # =================================================
-                            # No eval data -> cross-validation on main data
+                            # NO CROSS-VALIDATION
+                            # If we have eval data => train on main, test on eval
+                            # Else => train on main, test on main
                             # =================================================
-                            cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
-                            scores = cross_validate(
-                                classifier,
-                                X_main,
-                                y_main,
-                                cv=cv,
-                                scoring={'acc': 'accuracy', 'f1': 'f1_macro', 'rec': 'recall_macro'},
-                                return_train_score=False
-                            )
-                            accuracy_scores.extend(scores['test_acc'])
-                            f1_scores.extend(scores['test_f1'])
-                            recall_scores.extend(scores['test_rec'])
+                            classifier.random_state = seed_for_run
+                            classifier.fit(X_main, y_main)
+
+                            if use_eval:
+                                preds = classifier.predict(X_eval)
+                                true_labels = y_eval
+                            else:
+                                preds = classifier.predict(X_main)
+                                true_labels = y_main
+
+                            acc_ = accuracy_score(true_labels, preds)
+                            f1_ = f1_score(true_labels, preds, average='macro')
+                            rec_ = recall_score(true_labels, preds, average='macro')
+
+                            accuracy_scores.append(acc_)
+                            f1_scores.append(f1_)
+                            recall_scores.append(rec_)
 
                         else:
                             # =================================================
-                            # If eval data is loaded -> cross-validation on EVAL data,
-                            # training on ALL main data for each fold.
+                            # CROSS-VALIDATION
+                            # If no eval data => CV on main data
+                            # If eval data => CV on eval data (train on main)
                             # =================================================
                             cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
-                            idxs = np.arange(len(X_eval))
+                            
+                            if not use_eval:
+                                # CV on main data
+                                scores = cross_validate(
+                                    classifier,
+                                    X_main,
+                                    y_main,
+                                    cv=cv,
+                                    scoring={'acc': 'accuracy', 'f1': 'f1_macro', 'rec': 'recall_macro'},
+                                    return_train_score=False
+                                )
+                                accuracy_scores.extend(scores['test_acc'])
+                                f1_scores.extend(scores['test_f1'])
+                                recall_scores.extend(scores['test_rec'])
+                            else:
+                                # CV on eval data, always train on full main data
+                                idxs = np.arange(len(X_eval))
+                                for train_idx, test_idx in cv.split(idxs):
+                                    X_eval_fold = X_eval.iloc[test_idx]
+                                    y_eval_fold = y_eval[test_idx]
 
-                            for train_idx, test_idx in cv.split(idxs):
-                                # train_idx is normally the portion of EVAL data for "training" in normal CV,
-                                # but we ignore that: we always train on the main dataset.
-                                # We only use test_idx to pick the portion of eval data to test on.
-                                X_eval_fold = X_eval.iloc[test_idx]
-                                y_eval_fold = y_eval[test_idx]
+                                    classifier.random_state = seed_for_run
+                                    classifier.fit(X_main, y_main)
+                                    preds = classifier.predict(X_eval_fold)
 
-                                # train on full main data
-                                classifier.random_state = seed_for_run
-                                classifier.fit(X_main, y_main)
+                                    acc_ = accuracy_score(y_eval_fold, preds)
+                                    f1_ = f1_score(y_eval_fold, preds, average='macro')
+                                    rec_ = recall_score(y_eval_fold, preds, average='macro')
 
-                                # test on this fold of eval data
-                                preds = classifier.predict(X_eval_fold)
+                                    accuracy_scores.append(acc_)
+                                    f1_scores.append(f1_)
+                                    recall_scores.append(rec_)
 
-                                acc_ = accuracy_score(y_eval_fold, preds)
-                                f1_ = f1_score(y_eval_fold, preds, average='macro')
-                                rec_ = recall_score(y_eval_fold, preds, average='macro')
-
-                                accuracy_scores.append(acc_)
-                                f1_scores.append(f1_)
-                                recall_scores.append(rec_)
-
-                    # Check for any convergence warnings
+                    # Check for any ConvergenceWarning
                     for warning_msg in w:
                         if issubclass(warning_msg.category, ConvergenceWarning):
                             any_convergence_issue = True
 
-                # Compute best/worst/avg/std
+                # best/worst/avg/std
                 best_acc = max(accuracy_scores)
                 worst_acc = min(accuracy_scores)
                 avg_acc = np.mean(accuracy_scores)
@@ -664,7 +680,6 @@ class ClassifierApp:
                 avg_rec = np.mean(recall_scores)
                 std_rec = np.std(recall_scores)
 
-                # Append final results
                 self.results.append((
                     clf_name,
                     best_acc, worst_acc, avg_acc, std_acc,
