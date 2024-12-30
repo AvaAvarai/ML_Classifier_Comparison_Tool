@@ -28,6 +28,13 @@ from xgboost import XGBClassifier
 
 from tkinter import ttk
 
+# For parallel coordinates (matplotlib)
+import matplotlib
+matplotlib.use("TkAgg")  # Use the TkAgg backend for embedding in Tkinter
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from pandas.plotting import parallel_coordinates
+
 class ClassifierApp:
     def __init__(self, root):
         self.root = root
@@ -61,11 +68,19 @@ class ClassifierApp:
         self.results_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.results_tab, text="Results")
 
+        # NEW: Plot tab for embedded parallel coordinates
+        self.plot_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.plot_tab, text="Plot")
+
+        # For storing the FigureCanvas
+        self.plot_canvas = None
+
         # Build each section
         self.build_file_tab()
         self.build_classifiers_tab()
         self.build_params_tab()
         self.build_results_tab()
+        self.build_plot_tab()  # minimal UI for the "Plot" tab
 
     # ------------------------------------------------------------------------
     # Tab 1: File loading and info
@@ -200,7 +215,7 @@ class ClassifierApp:
 
         self.cross_val_split = self.add_param_entry(
             parent=common_params_frame,
-            label="Cross-Validation Split (>=1, 1 is no CV):",
+            label="Cross-Validation Split (>=1, 1=no CV):",
             default="5"
         )
         self.run_count = self.add_param_entry(
@@ -529,12 +544,83 @@ class ClassifierApp:
 
         self.results_table.pack(fill=tk.BOTH, expand=True, pady=10, padx=5)
 
+        # Export button
         self.export_button = tk.Button(
             self.results_tab,
             text="Export to CSV",
             command=self.export_results
         )
-        self.export_button.pack(pady=5)
+        self.export_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Visualize button => calls self.visualize_results
+        self.visualize_button = tk.Button(
+            self.results_tab,
+            text="Visualize",
+            command=self.visualize_results
+        )
+        self.visualize_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+    # ------------------------------------------------------------------------
+    # NEW: Tab 5: Plot (for embedded parallel coordinates)
+    # ------------------------------------------------------------------------
+    def build_plot_tab(self):
+        # Not much needed except a label or something
+        label = tk.Label(self.plot_tab, text="Parallel Coordinates will be shown here.")
+        label.pack(pady=10)
+
+    def visualize_results(self):
+        """
+        Build a parallel coordinates plot from self.results,
+        then embed it in the "Plot" tab via FigureCanvasTkAgg.
+        """
+        if not self.results:
+            messagebox.showerror("Error", "No results to visualize.")
+            return
+
+        # Convert self.results => DataFrame
+        columns = [
+            "Classifier",
+            "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
+            "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
+            "REC Best", "REC Worst", "REC Avg", "REC Std"
+        ]
+        df = pd.DataFrame(self.results, columns=columns)
+
+        # parallel_coordinates needs a 'class' column for color grouping
+        # We'll just rename "Classifier" => "Class"
+        # or keep "Classifier" but pass class_column="Classifier"
+        df["Classifier"] = df["Classifier"].astype(str)
+
+        # Create the figure
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        parallel_coordinates(
+            df,
+            class_column="Classifier",
+            cols=[
+                "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
+                "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
+                "REC Best", "REC Worst", "REC Avg", "REC Std"
+            ],
+            color=plt.cm.tab10.colors,  # a set of distinct colors
+            alpha=0.75
+        )
+        ax.set_title("Parallel Coordinates: Classifier Metrics")
+        ax.set_ylabel("Metric Value")
+        plt.tight_layout()
+
+        # Destroy any previous canvas in the plot tab
+        if self.plot_canvas:
+            self.plot_canvas.get_tk_widget().destroy()
+            self.plot_canvas = None
+
+        # Embed figure in the plot tab
+        self.plot_canvas = FigureCanvasTkAgg(fig, master=self.plot_tab)
+        self.plot_canvas.draw()
+        self.plot_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        # Switch to the Plot tab
+        self.notebook.select(self.plot_tab)
 
     # ------------------------------------------------------------------------
     # Running classifiers
@@ -596,11 +682,7 @@ class ClassifierApp:
                         random.seed(seed_for_run)
 
                         if num_splits == 1:
-                            # =================================================
                             # NO CROSS-VALIDATION
-                            # If we have eval data => train on main, test on eval
-                            # Else => train on main, test on main
-                            # =================================================
                             classifier.random_state = seed_for_run
                             classifier.fit(X_main, y_main)
 
@@ -620,13 +702,9 @@ class ClassifierApp:
                             recall_scores.append(rec_)
 
                         else:
-                            # =================================================
                             # CROSS-VALIDATION
-                            # If no eval data => CV on main data
-                            # If eval data => CV on eval data (train on main)
-                            # =================================================
                             cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
-                            
+
                             if not use_eval:
                                 # CV on main data
                                 scores = cross_validate(
@@ -702,6 +780,9 @@ class ClassifierApp:
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
+    # ------------------------------------------------------------------------
+    # Parsing hyperparams
+    # ------------------------------------------------------------------------
     def parse_hyperparams(self, clf_name):
         param_values = {}
         config = self.param_config[clf_name]
@@ -824,13 +905,6 @@ class ClassifierApp:
         for row in self.results_table.get_children():
             self.results_table.delete(row)
 
-        # Each tuple in self.results is:
-        # (
-        #   clf_name,
-        #   best_acc, worst_acc, avg_acc, std_acc,
-        #   best_f1, worst_f1, avg_f1, std_f1,
-        #   best_rec, worst_rec, avg_rec, std_rec
-        # )
         for res in self.results:
             (
                 clf_name,
@@ -862,14 +936,12 @@ class ClassifierApp:
             return
 
         file_path = filedialog.asksaveasfilename(
-            defaultextension=".csv", 
+            defaultextension=".csv",
             filetypes=[("CSV files", "*.csv")]
         )
         if not file_path:
             return
 
-        # Basic example of exporting the results (only the accuracy columns in original code),
-        # but you could export all columns easily by building a DataFrame with them.
         df = pd.DataFrame(self.results, columns=[
             "Classifier",
             "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
