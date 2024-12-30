@@ -5,6 +5,7 @@ import numpy as np
 import random
 import warnings
 
+from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import cross_val_score, KFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -538,8 +539,14 @@ class ClassifierApp:
             X = self.data.drop(columns=self.class_column)
             y = self.data[self.class_column]
 
+            # ---------------------------------------------------------------------
+            # AUTOMATIC LABEL ENCODING IF CLASSES ARE STRINGS
+            # ---------------------------------------------------------------------
+            if y.dtype == object or y.dtype.kind in {'U', 'S'}:
+                le = LabelEncoder()
+                y = le.fit_transform(y)
+
             self.results = []
-            # We'll track if any convergence warnings appear
             any_convergence_issue = False
 
             # For each selected classifier, parse hyperparams and run
