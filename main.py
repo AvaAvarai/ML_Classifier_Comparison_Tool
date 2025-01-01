@@ -614,6 +614,11 @@ class ClassifierApp:
         ax.set_ylabel("Metric Value")
         plt.tight_layout()
 
+        # Remove the placeholder label if it exists
+        for widget in self.plot_tab.winfo_children():
+            if isinstance(widget, tk.Label):
+                widget.destroy()
+
         # Destroy any previous canvas in the plot tab
         if self.plot_canvas:
             self.plot_canvas.get_tk_widget().destroy()
