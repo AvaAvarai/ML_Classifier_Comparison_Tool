@@ -951,6 +951,12 @@ class ClassifierApp:
         df.to_csv(file_path, index=False)
         messagebox.showinfo("Success", "Results exported successfully.")
 
+    def cleanup(self):
+        # Properly close and clean up matplotlib figures
+        if self.plot_canvas:
+            plt.close(self.plot_canvas.figure)
+        self.root.destroy()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
@@ -969,4 +975,8 @@ if __name__ == "__main__":
 
     app = ClassifierApp(root)
     center_window(root)
+
+    # Bind cleanup to the close event
+    root.protocol("WM_DELETE_WINDOW", app.cleanup)
+
     root.mainloop()
