@@ -587,13 +587,12 @@ class ClassifierApp:
         df = pd.DataFrame(self.results, columns=columns)
 
         # parallel_coordinates needs a 'class' column for color grouping
-        # We'll just rename "Classifier" => "Class"
-        # or keep "Classifier" but pass class_column="Classifier"
         df["Classifier"] = df["Classifier"].astype(str)
 
         # Create the figure
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(10, 6))
 
+        # Generate the parallel coordinates plot
         parallel_coordinates(
             df,
             class_column="Classifier",
@@ -602,9 +601,15 @@ class ClassifierApp:
                 "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
                 "REC Best", "REC Worst", "REC Avg", "REC Std"
             ],
-            color=plt.cm.tab10.colors,  # a set of distinct colors
+            color=plt.cm.tab10.colors,
             alpha=0.75
         )
+
+        # Adjust the legend position
+        legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, frameon=False)
+        legend.set_title("Classifiers")
+
+        # Add a title and labels
         ax.set_title("Parallel Coordinates: Classifier Metrics")
         ax.set_ylabel("Metric Value")
         plt.tight_layout()
@@ -614,7 +619,7 @@ class ClassifierApp:
             self.plot_canvas.get_tk_widget().destroy()
             self.plot_canvas = None
 
-        # Embed figure in the plot tab
+        # Embed the figure in the plot tab
         self.plot_canvas = FigureCanvasTkAgg(fig, master=self.plot_tab)
         self.plot_canvas.draw()
         self.plot_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
