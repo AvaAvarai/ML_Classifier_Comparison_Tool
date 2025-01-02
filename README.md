@@ -4,6 +4,8 @@
 
 The **Machine Learning Classifier Comparison Tool** helps benchmark and compare the performance of various machine learning classifiers on a dataset. It supports optional evaluation data, cross-validation (or none if splits = 1), and an embedded parallel-coordinates visualization of the final results.
 
+![results](results_plot.png)
+
 ## Features
 
 - **Load Main Dataset**  
