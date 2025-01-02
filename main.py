@@ -839,7 +839,8 @@ class ClassifierApp:
                 if not var.get():
                     continue
 
-                self.status_label['text'] = f"Running {clf_name}..."
+                # Update status to show classifier name and total runs
+                self.status_label['text'] = f"Running {clf_name} (0/{run_count} runs)..."
                 self.root.update()
 
                 hyperparams = self.parse_hyperparams(clf_name)
@@ -853,9 +854,10 @@ class ClassifierApp:
                     warnings.simplefilter("always", ConvergenceWarning)
 
                     for run_i in range(run_count):
-                        # Update progress
+                        # Update progress and status with current run number
                         current_operation += 1
                         self.progress_bar['value'] = current_operation
+                        self.status_label['text'] = f"Running {clf_name} ({run_i + 1}/{run_count} runs)..."
                         self.root.update()
 
                         seed_for_run = random_seed + run_i
