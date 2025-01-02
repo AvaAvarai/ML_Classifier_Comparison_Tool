@@ -187,14 +187,63 @@ class ClassifierApp:
         classifiers_frame = ttk.Frame(self.classifiers_frame)
         classifiers_frame.pack(fill=tk.X, pady=5)
 
-        # Add select all toggle button at the top
-        self.select_all_var = tk.BooleanVar(value=False)
+        # Create a frame for toggle buttons
+        toggle_frame = ttk.Frame(classifiers_frame)
+        toggle_frame.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky=tk.W)
+
+        # Add toggle buttons
         self.select_all_button = ttk.Button(
-            classifiers_frame,
+            toggle_frame,
             text="Select All",
             command=self.toggle_all_classifiers
         )
-        self.select_all_button.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        self.select_all_button.pack(side=tk.LEFT, padx=5)
+
+        self.select_numerical_button = ttk.Button(
+            toggle_frame,
+            text="Toggle Numerical",
+            command=lambda: self.toggle_by_type("numerical")
+        )
+        self.select_numerical_button.pack(side=tk.LEFT, padx=5)
+
+        self.select_binary_button = ttk.Button(
+            toggle_frame,
+            text="Toggle Binary",
+            command=lambda: self.toggle_by_type("binary")
+        )
+        self.select_binary_button.pack(side=tk.LEFT, padx=5)
+
+        self.select_categorical_button = ttk.Button(
+            toggle_frame,
+            text="Toggle Categorical",
+            command=lambda: self.toggle_by_type("categorical")
+        )
+        self.select_categorical_button.pack(side=tk.LEFT, padx=5)
+
+        # Dictionary mapping classifiers to their data types
+        self.classifier_types = {
+            "Decision Tree": ["numerical", "binary", "categorical"],
+            "Random Forest": ["numerical", "binary", "categorical"],
+            "Extra Trees": ["numerical", "binary", "categorical"],
+            "KNN": ["numerical"],
+            "SVM": ["numerical"],
+            "LDA": ["numerical"],
+            "Logistic Regression": ["numerical"],
+            "Ridge": ["numerical"],
+            "Naive Bayes": ["numerical"],
+            "Bernoulli NB": ["binary"],
+            "Multinomial NB": ["categorical"],
+            "QDA": ["numerical"],
+            "MLP": ["numerical"],
+            "SGD": ["numerical"],
+            "Gradient Boosting": ["numerical", "binary", "categorical"],
+            "AdaBoost": ["numerical", "binary", "categorical"],
+            "XGBoost": ["numerical", "binary", "categorical"],
+            "CatBoost": ["numerical", "binary", "categorical"],
+            "LightGBM": ["numerical", "binary", "categorical"],
+            "Passive Aggressive": ["numerical"],
+            "Perceptron": ["numerical"]
+        }
 
         # Classifiers with names, acronyms, and data type hints
         classifier_rows = [
@@ -336,6 +385,21 @@ class ClassifierApp:
         entry.pack(side=tk.LEFT, padx=5)
 
         return entry
+
+    def toggle_by_type(self, data_type):
+        """Toggle all classifiers of a specific data type"""
+        # First check if any classifier of this type is unchecked
+        any_unchecked = False
+        for clf_name, types in self.classifier_types.items():
+            if data_type in types and not self.selected_classifiers[clf_name].get():
+                any_unchecked = True
+                break
+
+        # If any are unchecked, check all. Otherwise, uncheck all
+        new_state = any_unchecked
+        for clf_name, types in self.classifier_types.items():
+            if data_type in types:
+                self.selected_classifiers[clf_name].set(new_state)
 
     # ------------------------------------------------------------------------
     # Tab 3: Hyperparameter controls
