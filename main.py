@@ -173,6 +173,15 @@ class ClassifierApp:
         classifiers_frame = ttk.Frame(self.classifiers_frame)
         classifiers_frame.pack(fill=tk.X, pady=5)
 
+        # Add select all toggle button at the top
+        self.select_all_var = tk.BooleanVar(value=False)
+        self.select_all_button = ttk.Button(
+            classifiers_frame,
+            text="Select All",
+            command=self.toggle_all_classifiers
+        )
+        self.select_all_button.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+
         # Classifiers with names and acronyms - now in 4 rows
         classifier_rows = [
             # Row 1
@@ -203,7 +212,7 @@ class ClassifierApp:
             ]
         ]
 
-        # Create checkboxes for each classifier
+        # Create checkboxes for each classifier - start from row 1 instead of 0
         for row_idx, row_classifiers in enumerate(classifier_rows):
             for col_idx, (clf_display_name, acronym) in enumerate(row_classifiers):
                 var = tk.BooleanVar(value=False)
@@ -212,7 +221,7 @@ class ClassifierApp:
                     text=f"{clf_display_name} ({acronym})",
                     variable=var
                 )
-                chk.grid(row=row_idx, column=col_idx, padx=5, pady=5, sticky=tk.W)
+                chk.grid(row=row_idx + 1, column=col_idx, padx=5, pady=5, sticky=tk.W)  # +1 to row_idx
                 
                 # Map the short internal name to the variable
                 internal_name = {
@@ -264,6 +273,20 @@ class ClassifierApp:
             command=self.run_classifiers,
         )
         self.run_button.pack(pady=5)
+
+    def toggle_all_classifiers(self):
+        """Toggle all classifiers on/off"""
+        # Toggle the state
+        new_state = not any(var.get() for var in self.selected_classifiers.values())
+        
+        # Update all checkboxes
+        for var in self.selected_classifiers.values():
+            var.set(new_state)
+        
+        # Update button text
+        self.select_all_button.config(
+            text="Deselect All" if new_state else "Select All"
+        )
 
     def add_param_entry(self, parent, label, default):
         frame = ttk.Frame(parent)
