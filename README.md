@@ -39,6 +39,12 @@ The **Machine Learning Classifier Comparison Tool** helps benchmark and compare 
    - Export to CSV if desired.  
    - Click **Visualize** to see a parallel coordinates chart in the **Plot** tab.
 
+## Getting Started
+
+1. Clone the repository
+2. Run `pip install numpy pandas scikit-learn xgboost catboost lightgbm matplotlib pyyaml`
+3. Run the `main.py` file
+
 ## Planned Enhancements
 
 - [ ] Explore further graphical summaries (e.g., box plots, bar charts).

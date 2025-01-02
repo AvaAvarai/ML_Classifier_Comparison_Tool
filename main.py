@@ -157,20 +157,27 @@ class ClassifierApp:
         raise ValueError("No column with 'class' found.")
 
     def display_dataset_info(self, df, class_col):
+        """Display all dataset information in a single method"""
+        # Get data type analysis (excluding class column)
+        type_analysis, types_count, dataset_type = self.analyze_data_types(df)
+
+        # Get class information
         class_counts = df[class_col].value_counts()
         total_cases = len(df)
         num_classes = len(class_counts)
         balance_ratio = class_counts.min() / class_counts.max() if class_counts.max() != 0 else 0
+        majority_class = class_counts.idxmax()
 
+        # Build the info text
         info = (
-            f"Classes: {list(class_counts.index)}\n"
-            f"Class Counts: {class_counts.to_dict()}\n"
-            f"Total Cases: {total_cases}\n"
+            f"Dataset for training statistical information:\n"
             f"Number of Classes: {num_classes}\n"
-            f"Class Balance: {'Balanced' if abs(balance_ratio - 1.0) < 1e-9 else 'Not Balanced'} "
-            f"(Ratio: {balance_ratio:.2f})\n"
-            f"Number of Features: {len(df.columns) - 1}\n"
-            f"Features: {[col for col in df.columns if col != class_col]}\n"
+            f"Class case counts: {class_counts.to_dict()}\n"
+            f"Class balance: {balance_ratio:.2f} (Majority class: {majority_class})\n"
+            f"Classes: {', '.join(map(str, df[class_col].unique()))}\n\n"
+            f"Dataset Type: {dataset_type.upper()}\n"
+            f"Feature Types:\n"
+            f"{chr(10).join(f'  {col}: {dtype}' for col, dtype in sorted(type_analysis.items()))}\n\n"
             f"Missing Values: "
             f"{'none' if df.isnull().sum().sum() == 0 else f'contains missing values ({df.isnull().sum().sum()})'}"
         )
@@ -1177,6 +1184,43 @@ class ClassifierApp:
         if self.plot_canvas:
             plt.close(self.plot_canvas.figure)
         self.root.destroy()
+
+    def analyze_data_types(self, data):
+        """Analyze data types of columns and overall dataset"""
+        type_analysis = {}
+        
+        for column in data.columns:
+            # Skip the target/class column
+            if column == self.class_column:
+                continue
+            
+            # Get unique values
+            unique_vals = data[column].nunique()
+            
+            # Check if boolean/binary
+            if data[column].dtype in ['bool'] or (unique_vals == 2):
+                type_analysis[column] = "binary"
+            
+            # Check if categorical
+            elif data[column].dtype in ['object', 'category']:
+                type_analysis[column] = "categorical"
+            
+            # Must be numerical
+            else:
+                type_analysis[column] = "numerical"
+        
+        # Count feature types (excluding class column)
+        types_count = {
+            "numerical": sum(1 for t in type_analysis.values() if t == "numerical"),
+            "categorical": sum(1 for t in type_analysis.values() if t == "categorical"),
+            "binary": sum(1 for t in type_analysis.values() if t == "binary")
+        }
+        
+        # If we have more than one type, it's mixed
+        unique_types = set(type_analysis.values())
+        dataset_type = "mixed" if len(unique_types) > 1 else list(unique_types)[0]
+        
+        return type_analysis, types_count, dataset_type
 
 
 if __name__ == "__main__":
