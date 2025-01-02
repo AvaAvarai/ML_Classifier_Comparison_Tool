@@ -50,6 +50,10 @@ The **Machine Learning Classifier Comparison Tool** helps benchmark and compare 
 - [ ] Explore further graphical summaries (e.g., box plots, bar charts).
 - [ ] Automatic hyperparameter tuning with grid or random search.
 
+## Acknowledgements
+
+- Color palette from [Roman Roads Project](https://sashamaps.net/docs/resources/20-colors/)
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).

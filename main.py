@@ -729,21 +729,34 @@ class ClassifierApp:
         # Create the figure with a smaller width
         fig, ax = plt.subplots(figsize=(8, 6))
 
-        # Define line styles and colors
-        line_styles = ['-', '--', ':', '-.']
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-                  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        # Define specific colors and line styles
+        colors = [
+            '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', 
+            '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', 
+            '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', 
+            '#000075', '#808080', '#ffffff', '#000000'
+        ]
+        line_styles = ['-', '--', ':', '-.']  # Used after colors are exhausted
         
         # Create unique combinations of colors and line styles
         style_cycler = []
         num_classifiers = len(df)
+        
         for i in range(num_classifiers):
-            color_idx = i % len(colors)
-            style_idx = i // len(colors)
-            style_cycler.append({
-                'color': colors[color_idx],
-                'linestyle': line_styles[style_idx % len(line_styles)]
-            })
+            if i < len(colors):
+                # Use unique color with solid line
+                style_cycler.append({
+                    'color': colors[i],
+                    'linestyle': '-'
+                })
+            else:
+                # After colors are exhausted, cycle through colors with different line styles
+                color_idx = i % len(colors)
+                style_idx = (i // len(colors)) % len(line_styles)
+                style_cycler.append({
+                    'color': colors[color_idx],
+                    'linestyle': line_styles[style_idx]
+                })
 
         # Plot each classifier's line with a unique style
         for idx, classifier in enumerate(df['Classifier'].unique()):
