@@ -89,6 +89,10 @@ class ClassifierApp:
         self.plot_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.plot_tab, text="Plot")
 
+        # Add About tab after Plot tab
+        self.about_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.about_tab, text="About")
+
         # For storing the FigureCanvas
         self.plot_canvas = None
 
@@ -97,7 +101,8 @@ class ClassifierApp:
         self.build_classifiers_tab()
         self.build_params_tab()
         self.build_results_tab()
-        self.build_plot_tab()  # minimal UI for the "Plot" tab
+        self.build_plot_tab()
+        self.build_about_tab()
 
     # ------------------------------------------------------------------------
     # Tab 1: File loading and info
@@ -1307,6 +1312,69 @@ class ClassifierApp:
         dataset_type = "mixed" if len(unique_types) > 1 else list(unique_types)[0]
         
         return type_analysis, types_count, dataset_type
+
+    def build_about_tab(self):
+        """Build the About tab with application information"""
+        # Create a Text widget for the about information
+        about_text = tk.Text(
+            self.about_tab,
+            wrap=tk.WORD,
+            height=20,
+            width=60,
+            padx=10,
+            pady=10
+        )
+        about_text.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
+
+        # Application information
+        info = """Machine Learning Classifier Comparison Tool
+
+Version: 0.2
+Author: Alice Williams
+Organization: Visual Knowledge Discovery and Imaging Lab
+Location: Central Washington University
+License: MIT
+
+Description:
+This tool allows you to compare multiple machine learning classifiers on your dataset using various evaluation metrics. It supports both cross-validation and direct evaluation on a secondary dataset.
+
+Features:
+• Support for 21 different classifiers from scikit-learn and other popular libraries
+• Configurable hyperparameters for each classifier
+• Cross-validation with customizable splits
+• Multiple evaluation metrics (Accuracy, F1-score, Recall)
+• Interactive parallel coordinates visualization
+• Export results to CSV
+• Support for both training and evaluation datasets
+
+Supported Classifier Types:
+• Numerical Data: KNN, SVM, LDA, QDA, etc.
+• Binary Data: Bernoulli Naive Bayes
+• Categorical Data: Decision Trees, Random Forests, etc.
+• Mixed Data Types: Gradient Boosting, XGBoost, etc.
+
+Libraries Used:
+• scikit-learn
+• pandas
+• numpy
+• matplotlib
+• xgboost
+• lightgbm
+• catboost
+
+For more information about the classifiers and their parameters, 
+refer to the scikit-learn documentation:
+https://scikit-learn.org/stable/supervised_learning.html
+"""
+
+        # Insert the text and disable editing
+        about_text.insert('1.0', info)
+        about_text.config(state=tk.DISABLED)
+
+        # Add a scrollbar
+        scrollbar = ttk.Scrollbar(self.about_tab, orient=tk.VERTICAL, command=about_text.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        about_text.config(yscrollcommand=scrollbar.set)
 
 
 if __name__ == "__main__":
