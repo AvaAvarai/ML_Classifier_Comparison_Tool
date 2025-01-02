@@ -104,7 +104,7 @@ class ClassifierApp:
     # ------------------------------------------------------------------------
     def build_file_tab(self):
         # Main file label and load button
-        self.file_label = tk.Label(self.file_frame, text="No file loaded")
+        self.file_label = tk.Label(self.file_frame, text="No training data file loaded")
         self.file_label.pack(pady=5)
 
         self.load_button = tk.Button(
@@ -113,11 +113,11 @@ class ClassifierApp:
         self.load_button.pack(pady=5)
 
         # Evaluation file label and load button
-        self.eval_label = tk.Label(self.file_frame, text="No evaluate file loaded")
+        self.eval_label = tk.Label(self.file_frame, text="No secondary evaluation data file loaded")
         self.eval_label.pack(pady=5)
 
         self.eval_button = tk.Button(
-            self.file_frame, text="Load Evaluate File", command=self.load_eval_file
+            self.file_frame, text="Load File (Optional)", command=self.load_eval_file
         )
         self.eval_button.pack(pady=5)
 
@@ -147,6 +147,11 @@ class ClassifierApp:
             self.eval_data = pd.read_csv(file_path)
             self.eval_class_column = self.find_class_column(self.eval_data)
             self.eval_label.config(text=f"Loaded eval data: {file_path}")
+            
+            # Update the dataset info to show both datasets
+            if hasattr(self, 'data') and self.data is not None:
+                self.display_dataset_info(self.data, self.class_column)
+            
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load eval file: {e}")
 
@@ -157,7 +162,7 @@ class ClassifierApp:
         raise ValueError("No column with 'class' found.")
 
     def display_dataset_info(self, df, class_col):
-        """Display all dataset information in a single method"""
+        """Display dataset information for both training and evaluation data if available"""
         # Get data type analysis (excluding class column)
         type_analysis, types_count, dataset_type = self.analyze_data_types(df)
 
@@ -168,9 +173,9 @@ class ClassifierApp:
         balance_ratio = class_counts.min() / class_counts.max() if class_counts.max() != 0 else 0
         majority_class = class_counts.idxmax()
 
-        # Build the info text
+        # Build the info text for training data
         info = (
-            f"Dataset for training statistical information:\n"
+            f"Training Dataset Statistical Information:\n"
             f"Number of Classes: {num_classes}\n"
             f"Class case counts: {class_counts.to_dict()}\n"
             f"Class balance: {balance_ratio:.2f} (Majority class: {majority_class})\n"
@@ -181,6 +186,28 @@ class ClassifierApp:
             f"Missing Values: "
             f"{'none' if df.isnull().sum().sum() == 0 else f'contains missing values ({df.isnull().sum().sum()})'}"
         )
+
+        # If evaluation data is loaded, add its information
+        if hasattr(self, 'eval_data') and self.eval_data is not None:
+            eval_type_analysis, eval_types_count, eval_dataset_type = self.analyze_data_types(self.eval_data)
+            eval_class_counts = self.eval_data[self.eval_class_column].value_counts()
+            eval_num_classes = len(eval_class_counts)
+            eval_balance_ratio = eval_class_counts.min() / eval_class_counts.max() if eval_class_counts.max() != 0 else 0
+            eval_majority_class = eval_class_counts.idxmax()
+
+            info += (
+                f"\n\n{'-' * 50}\n\n"  # Add separator
+                f"Secondary Evaluation Dataset Statistical Information:\n"
+                f"Number of Classes: {eval_num_classes}\n"
+                f"Class case counts: {eval_class_counts.to_dict()}\n"
+                f"Class balance: {eval_balance_ratio:.2f} (Majority class: {eval_majority_class})\n"
+                f"Classes: {', '.join(map(str, self.eval_data[self.eval_class_column].unique()))}\n\n"
+                f"Dataset Type: {eval_dataset_type.upper()}\n"
+                f"Feature Types:\n"
+                f"{chr(10).join(f'  {col}: {dtype}' for col, dtype in sorted(eval_type_analysis.items()))}\n\n"
+                f"Missing Values: "
+                f"{'none' if self.eval_data.isnull().sum().sum() == 0 else f'contains missing values ({self.eval_data.isnull().sum().sum()})'}"
+            )
 
         self.info_text.config(state=tk.NORMAL)
         self.info_text.delete(1.0, tk.END)
