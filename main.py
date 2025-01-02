@@ -201,21 +201,21 @@ class ClassifierApp:
 
         self.select_numerical_button = ttk.Button(
             toggle_frame,
-            text="Toggle Numerical",
+            text="Select Numerical",
             command=lambda: self.toggle_by_type("numerical")
         )
         self.select_numerical_button.pack(side=tk.LEFT, padx=5)
 
         self.select_binary_button = ttk.Button(
             toggle_frame,
-            text="Toggle Binary",
+            text="Select Binary",
             command=lambda: self.toggle_by_type("binary")
         )
         self.select_binary_button.pack(side=tk.LEFT, padx=5)
 
         self.select_categorical_button = ttk.Button(
             toggle_frame,
-            text="Toggle Categorical",
+            text="Select Categorical",
             command=lambda: self.toggle_by_type("categorical")
         )
         self.select_categorical_button.pack(side=tk.LEFT, padx=5)
@@ -400,6 +400,20 @@ class ClassifierApp:
         for clf_name, types in self.classifier_types.items():
             if data_type in types:
                 self.selected_classifiers[clf_name].set(new_state)
+        
+        # Update button text based on data type
+        if data_type == "numerical":
+            self.select_numerical_button.config(
+                text="Deselect Numerical" if new_state else "Select Numerical"
+            )
+        elif data_type == "binary":
+            self.select_binary_button.config(
+                text="Deselect Binary" if new_state else "Select Binary"
+            )
+        elif data_type == "categorical":
+            self.select_categorical_button.config(
+                text="Deselect Categorical" if new_state else "Select Categorical"
+            )
 
     # ------------------------------------------------------------------------
     # Tab 3: Hyperparameter controls
