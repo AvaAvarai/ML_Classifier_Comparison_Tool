@@ -351,7 +351,7 @@ class ClassifierApp:
 
         # Common CV parameters
         common_params_frame = ttk.LabelFrame(
-            self.classifiers_frame, text="Common CV Parameters"
+            self.classifiers_frame, text="Cross-Validation and Run Parameters"
         )
         common_params_frame.pack(fill=tk.X, pady=10, padx=5)
 
@@ -547,6 +547,10 @@ class ClassifierApp:
         We'll keep columns for best/worst/avg/std for accuracy, F1, recall.
         This remains the same structure for either main-data CV or eval-data CV.
         """
+        # Add sorting state variables
+        self.sort_column = None
+        self.sort_reverse = False
+
         self.results_table = ttk.Treeview(
             self.results_tab,
             columns=(
@@ -562,8 +566,13 @@ class ClassifierApp:
             height=10
         )
 
+        # Configure column headings with click binding
         for col in self.results_table["columns"]:
-            self.results_table.heading(col, text=col)
+            self.results_table.heading(
+                col, 
+                text=col,
+                command=lambda c=col: self.sort_results_by(c)
+            )
             self.results_table.column(col, width=80, anchor=tk.CENTER)
 
         self.results_table.pack(fill=tk.BOTH, expand=True, pady=10, padx=5)
@@ -576,13 +585,48 @@ class ClassifierApp:
         )
         self.export_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-        # Visualize button => calls self.visualize_results
+        # Visualize button
         self.visualize_button = tk.Button(
             self.results_tab,
             text="Visualize",
             command=self.visualize_results
         )
         self.visualize_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+    def sort_results_by(self, column):
+        """Sort results table by the selected column"""
+        # If clicking the same column, reverse the sort order
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+
+        # Get all items
+        items = [(self.results_table.set(item, column), item) for item in self.results_table.get_children("")]
+        
+        # Sort items
+        items.sort(reverse=self.sort_reverse)
+        
+        # If sorting numeric columns, sort by float value instead of string
+        if column != "Classifier":
+            items = [(float(val), item) for val, item in items]
+            items.sort(reverse=self.sort_reverse)
+            items = [(str(val), item) for val, item in items]
+
+        # Rearrange items in sorted order
+        for index, (_, item) in enumerate(items):
+            self.results_table.move(item, "", index)
+
+        # Add visual feedback - update column header
+        for col in self.results_table["columns"]:
+            if col == column:
+                # Add arrow to indicate sort direction
+                arrow = "↓" if self.sort_reverse else "↑"
+                self.results_table.heading(col, text=f"{col} {arrow}")
+            else:
+                # Remove arrow from other columns
+                self.results_table.heading(col, text=col)
 
     # ------------------------------------------------------------------------
     # Tab 5: Plot (for embedded parallel coordinates)
@@ -740,8 +784,8 @@ class ClassifierApp:
                           ncol=3, frameon=False, title="Classifiers")
 
         # Add a title and labels
-        ax.set_title("Parallel Coordinates: Classifier Metrics")
-        ax.set_ylabel("Normalized Metric Value" if self.normalize_var.get() else "Metric Value")
+        ax.set_title("Parallel Coordinates: Classifier Evaluation Metrics")
+        ax.set_ylabel("Normalized Evaluation Metric Value" if self.normalize_var.get() else "Evaluation Metric Value")
         
         # Adjust layout to prevent label cutoff
         plt.tight_layout()
