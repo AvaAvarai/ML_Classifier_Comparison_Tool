@@ -74,24 +74,24 @@ class ClassifierApp:
 
         # Tabs
         self.file_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.file_frame, text="Data")
+        self.notebook.add(self.file_frame, text="Data Load and Statistics")
 
         self.classifiers_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.classifiers_frame, text="Classifiers")
+        self.notebook.add(self.classifiers_frame, text="Classifier Selection")
 
         self.params_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.params_tab, text="Parameters")
+        self.notebook.add(self.params_tab, text="Classifier Parameters")
 
         self.results_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.results_tab, text="Results")
+        self.notebook.add(self.results_tab, text="Results Table")
 
         # NEW: Plot tab for embedded parallel coordinates
         self.plot_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.plot_tab, text="Plot")
+        self.notebook.add(self.plot_tab, text="Results Plot")
 
         # Add About tab after Plot tab
         self.about_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.about_tab, text="About")
+        self.notebook.add(self.about_tab, text="Program About")
 
         # For storing the FigureCanvas
         self.plot_canvas = None
@@ -139,7 +139,7 @@ class ClassifierApp:
             self.data = pd.read_csv(file_path)
             self.class_column = self.find_class_column(self.data)
             self.display_dataset_info(self.data, self.class_column)
-            self.file_label.config(text=f"Loaded: {file_path}")
+            self.file_label.config(text=f"Training Data Loaded: {file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load file: {e}")
 
@@ -151,7 +151,7 @@ class ClassifierApp:
         try:
             self.eval_data = pd.read_csv(file_path)
             self.eval_class_column = self.find_class_column(self.eval_data)
-            self.eval_label.config(text=f"Loaded eval data: {file_path}")
+            self.eval_label.config(text=f"Evaluation Data Loaded: {file_path}")
             
             # Update the dataset info to show both datasets
             if hasattr(self, 'data') and self.data is not None:
