@@ -609,7 +609,7 @@ class ClassifierApp:
     # ------------------------------------------------------------------------
     def build_plot_tab(self):
         """
-        Build the Plot tab with toggle button for normalization, export button, and an area for embedding the plot.
+        Build the Plot tab with toggle buttons and export button
         """
         # Frame for controls
         controls_frame = ttk.Frame(self.plot_tab)
@@ -623,6 +623,15 @@ class ClassifierApp:
             command=self.toggle_normalization
         )
         self.normalize_button.pack(side=tk.LEFT, padx=5)
+
+        # Show axes toggle button - change default to False
+        self.show_axes_var = tk.BooleanVar(value=False)  # Default to no axes
+        self.show_axes_button = ttk.Button(
+            controls_frame,
+            text="Toggle Axes (Off)",  # Update initial text
+            command=self.toggle_axes
+        )
+        self.show_axes_button.pack(side=tk.LEFT, padx=5)
 
         # Export plot button
         self.export_plot_button = ttk.Button(
@@ -642,6 +651,17 @@ class ClassifierApp:
         # Update button text
         self.normalize_button.config(
             text=f"Toggle Normalization ({'On' if self.normalize_var.get() else 'Off'})"
+        )
+        # Redraw the visualization if we have results
+        if hasattr(self, 'results') and self.results:
+            self.visualize_results()
+
+    def toggle_axes(self):
+        """Toggle axes visibility and update the visualization"""
+        self.show_axes_var.set(not self.show_axes_var.get())
+        # Update button text
+        self.show_axes_button.config(
+            text=f"Toggle Axes ({'On' if self.show_axes_var.get() else 'Off'})"
         )
         # Redraw the visualization if we have results
         if hasattr(self, 'results') and self.results:
@@ -714,9 +734,26 @@ class ClassifierApp:
                     **style_cycler[idx]
                 )
 
-        # Set the x-axis labels
+        # Always keep the border (spines) and labels
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+        
+        # Always show x and y labels
         ax.set_xticks(range(len(numerical_cols)))
         ax.set_xticklabels(numerical_cols, rotation=45, ha='right')
+        ax.yaxis.set_visible(True)
+
+        # Toggle parallel axes visibility
+        if self.show_axes_var.get():
+            # Draw parallel coordinate axes
+            ax.grid(True, linestyle='--', alpha=0.7)
+            
+            # Draw vertical lines for each dimension
+            for i in range(len(numerical_cols)):
+                ax.axvline(x=i, color='gray', linestyle='-', alpha=0.5)
+        else:
+            # Hide just the grid
+            ax.grid(False)
 
         # Adjust the legend position
         legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), 
