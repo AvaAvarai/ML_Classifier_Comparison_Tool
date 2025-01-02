@@ -176,64 +176,69 @@ class ClassifierApp:
         bottom_frame = ttk.Frame(self.classifiers_frame)
         bottom_frame.pack(fill=tk.X, pady=5)
 
+        # Classifiers with names and acronyms
         classifiers_row1 = [
-            "Decision Tree",
-            "Random Forest",
-            "Extra Trees",
-            "KNN",
-            "SVM",
-            "LDA",
-            "Logistic Regression",
+            ("Decision Tree", "DT"),
+            ("Random Forest", "RF"),
+            ("Extra Trees", "ET"),
+            ("K-Nearest Neighbors", "KNN"),
+            ("Support Vector Machine", "SVM"),
+            ("Linear Discriminant Analysis", "LDA"),
+            ("Logistic Regression", "LR"),
         ]
         classifiers_row2 = [
-            "Ridge",
-            "Naive Bayes",
-            "MLP",
-            "SGD",
-            "Gradient Boosting",
-            "AdaBoost",
-            "XGBoost",
+            ("Ridge Classifier", "RC"),
+            ("Naive Bayes", "NB"),
+            ("Multi-Layer Perceptron", "MLP"),
+            ("Stochastic Gradient Descent", "SGD"),
+            ("Gradient Boosting", "GB"),
+            ("AdaBoost", "AB"),
+            ("Extreme Gradient Boosting", "XGB"),
         ]
 
-        # Row1
-        for i, clf_name in enumerate(classifiers_row1):
+        # Row 1
+        for i, (clf_name, acronym) in enumerate(classifiers_row1):
             var = tk.BooleanVar(value=False)
-            chk = tk.Checkbutton(top_frame, text=clf_name, variable=var)
+            chk = tk.Checkbutton(
+                top_frame, text=f"{clf_name} ({acronym})", variable=var
+            )
             chk.grid(row=0, column=i, padx=5, pady=5, sticky=tk.W)
             self.selected_classifiers[clf_name] = var
 
-        # Row2
-        for i, clf_name in enumerate(classifiers_row2):
+        # Row 2
+        for i, (clf_name, acronym) in enumerate(classifiers_row2):
             var = tk.BooleanVar(value=False)
-            chk = tk.Checkbutton(bottom_frame, text=clf_name, variable=var)
+            chk = tk.Checkbutton(
+                bottom_frame, text=f"{clf_name} ({acronym})", variable=var
+            )
             chk.grid(row=1, column=i, padx=5, pady=5, sticky=tk.W)
             self.selected_classifiers[clf_name] = var
 
         # Common CV parameters
-        common_params_frame = ttk.LabelFrame(self.classifiers_frame, text="Common CV Parameters")
+        common_params_frame = ttk.LabelFrame(
+            self.classifiers_frame, text="Common CV Parameters"
+        )
         common_params_frame.pack(fill=tk.X, pady=10, padx=5)
 
         self.cross_val_split = self.add_param_entry(
             parent=common_params_frame,
             label="Cross-Validation Split (>=1, 1=no CV):",
-            default="5"
+            default="5",
         )
         self.run_count = self.add_param_entry(
-            parent=common_params_frame,
-            label="Run Count (>=1):",
-            default="10"
+            parent=common_params_frame, label="Run Count (>=1):", default="10"
         )
         self.random_seed = self.add_param_entry(
             parent=common_params_frame,
             label="Random Seed:",
-            default=str(random.randint(0, 10**6))
+            default=str(random.randint(0, 10**6)),
         )
 
         # Run button
         self.run_button = tk.Button(
             self.classifiers_frame,
             text="Run Selected Classifiers",
-            command=self.run_classifiers
+            command=self.run_classifiers,
         )
         self.run_button.pack(pady=5)
 
