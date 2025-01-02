@@ -188,31 +188,51 @@ class ClassifierApp:
         ]
         classifiers_row2 = [
             ("Ridge Classifier", "RC"),
-            ("Naive Bayes", "NB"),
+            ("Gaussian Naive Bayes", "GNB"),
             ("Multi-Layer Perceptron", "MLP"),
             ("Stochastic Gradient Descent", "SGD"),
-            ("Gradient Boosting", "GB"),
-            ("AdaBoost", "AB"),
-            ("Extreme Gradient Boosting", "XGB"),
+            ("Gradient Boosting Classifier", "GB"),
+            ("AdaBoost Classifier", "AB"),
+            ("XGBoost Classifier", "XGB"),
         ]
 
         # Row 1
-        for i, (clf_name, acronym) in enumerate(classifiers_row1):
+        for i, (clf_display_name, acronym) in enumerate(classifiers_row1):
             var = tk.BooleanVar(value=False)
             chk = tk.Checkbutton(
-                top_frame, text=f"{clf_name} ({acronym})", variable=var
+                top_frame, text=f"{clf_display_name} ({acronym})", variable=var
             )
             chk.grid(row=0, column=i, padx=5, pady=5, sticky=tk.W)
-            self.selected_classifiers[clf_name] = var
+            # Map the short internal name to the variable
+            internal_name = {
+                "Decision Tree": "Decision Tree",
+                "Random Forest": "Random Forest",
+                "Extra Trees": "Extra Trees",
+                "K-Nearest Neighbors": "KNN",
+                "Support Vector Machine": "SVM",
+                "Linear Discriminant Analysis": "LDA",
+                "Logistic Regression": "Logistic Regression",
+            }[clf_display_name]
+            self.selected_classifiers[internal_name] = var
 
         # Row 2
-        for i, (clf_name, acronym) in enumerate(classifiers_row2):
+        for i, (clf_display_name, acronym) in enumerate(classifiers_row2):
             var = tk.BooleanVar(value=False)
             chk = tk.Checkbutton(
-                bottom_frame, text=f"{clf_name} ({acronym})", variable=var
+                bottom_frame, text=f"{clf_display_name} ({acronym})", variable=var
             )
             chk.grid(row=1, column=i, padx=5, pady=5, sticky=tk.W)
-            self.selected_classifiers[clf_name] = var
+            # Map the short internal name to the variable
+            internal_name = {
+                "Ridge Classifier": "Ridge",
+                "Gaussian Naive Bayes": "Naive Bayes",
+                "Multi-Layer Perceptron": "MLP",
+                "Stochastic Gradient Descent": "SGD",
+                "Gradient Boosting Classifier": "Gradient Boosting",
+                "AdaBoost Classifier": "AdaBoost",
+                "XGBoost Classifier": "XGBoost",
+            }[clf_display_name]
+            self.selected_classifiers[internal_name] = var
 
         # Common CV parameters
         common_params_frame = ttk.LabelFrame(
@@ -566,12 +586,39 @@ class ClassifierApp:
         self.visualize_button.pack(side=tk.LEFT, padx=5, pady=5)
 
     # ------------------------------------------------------------------------
-    # NEW: Tab 5: Plot (for embedded parallel coordinates)
+    # Tab 5: Plot (for embedded parallel coordinates)
     # ------------------------------------------------------------------------
     def build_plot_tab(self):
-        # Not much needed except a label or something
-        label = tk.Label(self.plot_tab, text="Parallel Coordinates will be shown here.")
-        label.pack(pady=10)
+        """
+        Build the Plot tab with a toggle button for normalization and an area for embedding the plot.
+        """
+        # Frame for controls
+        controls_frame = ttk.Frame(self.plot_tab)
+        controls_frame.pack(fill=tk.X, pady=5)
+
+        # Normalization toggle button
+        self.normalize_var = tk.BooleanVar(value=True)
+        self.normalize_button = ttk.Button(
+            controls_frame,
+            text="Toggle Normalization (On)",
+            command=self.toggle_normalization
+        )
+        self.normalize_button.pack(side=tk.LEFT, padx=5)
+
+        # Placeholder label for plot area
+        self.plot_placeholder = tk.Label(self.plot_tab, text="Parallel Coordinates will be shown here.")
+        self.plot_placeholder.pack(pady=10)
+
+    def toggle_normalization(self):
+        """Toggle normalization and update the visualization"""
+        self.normalize_var.set(not self.normalize_var.get())
+        # Update button text
+        self.normalize_button.config(
+            text=f"Toggle Normalization ({'On' if self.normalize_var.get() else 'Off'})"
+        )
+        # Redraw the visualization if we have results
+        if hasattr(self, 'results') and self.results:
+            self.visualize_results()
 
     def visualize_results(self):
         """
@@ -591,8 +638,25 @@ class ClassifierApp:
         ]
         df = pd.DataFrame(self.results, columns=columns)
 
+        # Check normalization toggle
+        numerical_cols = [
+            "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
+            "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
+            "REC Best", "REC Worst", "REC Avg", "REC Std"
+        ]
+        
+        if self.normalize_var.get():
+            from sklearn.preprocessing import MinMaxScaler
+            scaler = MinMaxScaler()
+            df[numerical_cols] = scaler.fit_transform(df[numerical_cols])
+
         # parallel_coordinates needs a 'class' column for color grouping
         df["Classifier"] = df["Classifier"].astype(str)
+
+        # Clear the previous plot if it exists
+        if self.plot_canvas:
+            self.plot_canvas.get_tk_widget().destroy()
+            plt.close('all')
 
         # Create the figure
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -601,11 +665,7 @@ class ClassifierApp:
         parallel_coordinates(
             df,
             class_column="Classifier",
-            cols=[
-                "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
-                "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
-                "REC Best", "REC Worst", "REC Avg", "REC Std"
-            ],
+            cols=numerical_cols,
             color=plt.cm.tab10.colors,
             alpha=0.75
         )
@@ -616,18 +676,13 @@ class ClassifierApp:
 
         # Add a title and labels
         ax.set_title("Parallel Coordinates: Classifier Metrics")
-        ax.set_ylabel("Metric Value")
+        ax.set_ylabel("Normalized Metric Value" if self.normalize_var.get() else "Metric Value")
         plt.tight_layout()
 
         # Remove the placeholder label if it exists
-        for widget in self.plot_tab.winfo_children():
-            if isinstance(widget, tk.Label):
-                widget.destroy()
-
-        # Destroy any previous canvas in the plot tab
-        if self.plot_canvas:
-            self.plot_canvas.get_tk_widget().destroy()
-            self.plot_canvas = None
+        if hasattr(self, 'plot_placeholder') and self.plot_placeholder:
+            self.plot_placeholder.destroy()
+            self.plot_placeholder = None
 
         # Embed the figure in the plot tab
         self.plot_canvas = FigureCanvasTkAgg(fig, master=self.plot_tab)
@@ -678,6 +733,8 @@ class ClassifierApp:
             any_convergence_issue = False
 
             for clf_name, var in self.selected_classifiers.items():
+                # Debug print
+                # print(f"Processing classifier: {clf_name}")
                 if not var.get():
                     continue
 
@@ -792,8 +849,12 @@ class ClassifierApp:
 
         except ValueError as e:
             messagebox.showerror("Error", str(e))
+            # Debug print
+            # print(f"ValueError: {e}")  # Debug print
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
+            # Debug print
+            # print(f"Unexpected Error: {e}")  # Debug print
 
     # ------------------------------------------------------------------------
     # Parsing hyperparams
@@ -837,6 +898,8 @@ class ClassifierApp:
 
     def build_classifier(self, clf_name, hyperparams, random_seed):
         """Instantiate the classifier with the parsed hyperparameters."""
+        # Debug print
+        # print(f"Building classifier: {clf_name} with parameters: {hyperparams}")
         if clf_name == "Decision Tree":
             return DecisionTreeClassifier(
                 random_state=random_seed,
