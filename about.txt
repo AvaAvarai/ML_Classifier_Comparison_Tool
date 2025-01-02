@@ -1,0 +1,39 @@
+Machine Learning Classifier Comparison Tool
+
+Version: 0.2
+Author: Alice Williams
+Organization: Visual Knowledge Discovery and Imaging Lab
+Location: Central Washington University
+License: MIT
+
+Description:
+This tool allows you to compare multiple machine learning classifiers on your dataset using various evaluation metrics. It supports both cross-validation and direct evaluation on a secondary dataset.
+
+Features:
+- Support for 21 different classifiers from scikit-learn and other popular libraries
+- Configurable hyperparameters for each classifier
+- Cross-validation with customizable splits
+- Multiple evaluation metrics (Accuracy, F1-score, Recall)
+- Interactive parallel coordinates visualization
+- Export results to CSV
+- Support for both training and evaluation datasets
+- Visualization of the results in a parallel coordinates plot
+
+Classifiers Supported:
+- Numerical Data: K-Nearest Neighbors (KNN), Support Vector Machines (SVM), Linear Discriminant Analysis (LDA), Quadratic Discriminant Analysis (QDA), Logistic Regression, Ridge Classifier, Stochastic Gradient Descent (SGD) Classifier
+- Binary Data: Bernoulli Naive Bayes
+- Categorical Data: Decision Trees, Random Forests, Extra Trees Classifier, Multinomial Naive Bayes
+- Mixed Data Types: Gradient Boosting Classifier, Extreme Gradient Boosting (XGBoost), AdaBoost Classifier, Light Gradient Boosting Machine (LightGBM), CatBoost Classifier, Passive Aggressive Classifier, Perceptron
+
+Libraries Used:
+- scikit-learn
+- pandas
+- numpy
+- matplotlib
+- xgboost
+- lightgbm
+- catboost
+
+For more information about the classifiers and their parameters, 
+refer to the scikit-learn documentation:
+https://scikit-learn.org/stable/supervised_learning.html 

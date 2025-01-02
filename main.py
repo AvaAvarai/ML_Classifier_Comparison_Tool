@@ -1326,46 +1326,13 @@ class ClassifierApp:
         )
         about_text.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
 
-        # Application information
-        info = """Machine Learning Classifier Comparison Tool
-
-Version: 0.2
-Author: Alice Williams
-Organization: Visual Knowledge Discovery and Imaging Lab
-Location: Central Washington University
-License: MIT
-
-Description:
-This tool allows you to compare multiple machine learning classifiers on your dataset using various evaluation metrics. It supports both cross-validation and direct evaluation on a secondary dataset.
-
-Features:
-• Support for 21 different classifiers from scikit-learn and other popular libraries
-• Configurable hyperparameters for each classifier
-• Cross-validation with customizable splits
-• Multiple evaluation metrics (Accuracy, F1-score, Recall)
-• Interactive parallel coordinates visualization
-• Export results to CSV
-• Support for both training and evaluation datasets
-
-Supported Classifier Types:
-• Numerical Data: KNN, SVM, LDA, QDA, etc.
-• Binary Data: Bernoulli Naive Bayes
-• Categorical Data: Decision Trees, Random Forests, etc.
-• Mixed Data Types: Gradient Boosting, XGBoost, etc.
-
-Libraries Used:
-• scikit-learn
-• pandas
-• numpy
-• matplotlib
-• xgboost
-• lightgbm
-• catboost
-
-For more information about the classifiers and their parameters, 
-refer to the scikit-learn documentation:
-https://scikit-learn.org/stable/supervised_learning.html
-"""
+        try:
+            # Load about text from file
+            with open('about.txt', 'r') as f:
+                info = f.read()
+        except Exception as e:
+            info = "Error loading about information."
+            messagebox.showerror("Error", f"Failed to load about information: {e}")
 
         # Insert the text and disable editing
         about_text.insert('1.0', info)
