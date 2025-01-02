@@ -638,13 +638,14 @@ class ClassifierApp:
         items = [(self.results_table.set(item, column), item) for item in self.results_table.get_children("")]
         
         # Sort items
-        items.sort(reverse=self.sort_reverse)
-        
-        # If sorting numeric columns, sort by float value instead of string
         if column != "Classifier":
-            items = [(float(val), item) for val, item in items]
+            # For numeric columns, extract the actual value before the parentheses
+            items = [(float(val.split()[0]), item) for val, item in items]
             items.sort(reverse=self.sort_reverse)
             items = [(str(val), item) for val, item in items]
+        else:
+            # For Classifier column, sort alphabetically
+            items.sort(reverse=self.sort_reverse)
 
         # Rearrange items in sorted order
         for index, (_, item) in enumerate(items):
@@ -1232,59 +1233,68 @@ class ClassifierApp:
         for row in self.results_table.get_children():
             self.results_table.delete(row)
 
-        # Add training results
+        # Add training results with evaluation differences if they exist
         if hasattr(self, 'train_results') and self.train_results:
-            for res in self.train_results:
+            for i, train_res in enumerate(self.train_results):
                 (
                     clf_name,
-                    best_acc, worst_acc, avg_acc, std_acc,
-                    best_f1, worst_f1, avg_f1, std_f1,
-                    best_rec, worst_rec, avg_rec, std_rec
-                ) = res
+                    train_best_acc, train_worst_acc, train_avg_acc, train_std_acc,
+                    train_best_f1, train_worst_f1, train_avg_f1, train_std_f1,
+                    train_best_rec, train_worst_rec, train_avg_rec, train_std_rec
+                ) = train_res
 
-                row_values = (
-                    f"{clf_name} (Training)",
-                    f"{best_acc:.4f}",
-                    f"{worst_acc:.4f}",
-                    f"{avg_acc:.4f}",
-                    f"{std_acc:.4f}",
-                    f"{best_f1:.4f}",
-                    f"{worst_f1:.4f}",
-                    f"{avg_f1:.4f}",
-                    f"{std_f1:.4f}",
-                    f"{best_rec:.4f}",
-                    f"{worst_rec:.4f}",
-                    f"{avg_rec:.4f}",
-                    f"{std_rec:.4f}"
-                )
+                # If evaluation results exist, calculate differences
+                if hasattr(self, 'eval_results') and self.eval_results:
+                    eval_res = self.eval_results[i]
+                    (
+                        _, # clf_name same as training
+                        eval_best_acc, eval_worst_acc, eval_avg_acc, eval_std_acc,
+                        eval_best_f1, eval_worst_f1, eval_avg_f1, eval_std_f1,
+                        eval_best_rec, eval_worst_rec, eval_avg_rec, eval_std_rec
+                    ) = eval_res
+
+                    # Format values with differences
+                    row_values = (
+                        clf_name,
+                        f"{train_best_acc:.4f} ({self._format_diff(eval_best_acc - train_best_acc)})",
+                        f"{train_worst_acc:.4f} ({self._format_diff(eval_worst_acc - train_worst_acc)})",
+                        f"{train_avg_acc:.4f} ({self._format_diff(eval_avg_acc - train_avg_acc)})",
+                        f"{train_std_acc:.4f} ({self._format_diff(eval_std_acc - train_std_acc)})",
+                        f"{train_best_f1:.4f} ({self._format_diff(eval_best_f1 - train_best_f1)})",
+                        f"{train_worst_f1:.4f} ({self._format_diff(eval_worst_f1 - train_worst_f1)})",
+                        f"{train_avg_f1:.4f} ({self._format_diff(eval_avg_f1 - train_avg_f1)})",
+                        f"{train_std_f1:.4f} ({self._format_diff(eval_std_f1 - train_std_f1)})",
+                        f"{train_best_rec:.4f} ({self._format_diff(eval_best_rec - train_best_rec)})",
+                        f"{train_worst_rec:.4f} ({self._format_diff(eval_worst_rec - train_worst_rec)})",
+                        f"{train_avg_rec:.4f} ({self._format_diff(eval_avg_rec - train_avg_rec)})",
+                        f"{train_std_rec:.4f} ({self._format_diff(eval_std_rec - train_std_rec)})"
+                    )
+                else:
+                    # Just show training values without differences
+                    row_values = (
+                        clf_name,
+                        f"{train_best_acc:.4f}",
+                        f"{train_worst_acc:.4f}",
+                        f"{train_avg_acc:.4f}",
+                        f"{train_std_acc:.4f}",
+                        f"{train_best_f1:.4f}",
+                        f"{train_worst_f1:.4f}",
+                        f"{train_avg_f1:.4f}",
+                        f"{train_std_f1:.4f}",
+                        f"{train_best_rec:.4f}",
+                        f"{train_worst_rec:.4f}",
+                        f"{train_avg_rec:.4f}",
+                        f"{train_std_rec:.4f}"
+                    )
+                
                 self.results_table.insert("", "end", values=row_values)
 
-        # Add evaluation results if they exist
-        if hasattr(self, 'eval_results') and self.eval_results:
-            for res in self.eval_results:
-                (
-                    clf_name,
-                    best_acc, worst_acc, avg_acc, std_acc,
-                    best_f1, worst_f1, avg_f1, std_f1,
-                    best_rec, worst_rec, avg_rec, std_rec
-                ) = res
-
-                row_values = (
-                    f"{clf_name} (Evaluation)",
-                    f"{best_acc:.4f}",
-                    f"{worst_acc:.4f}",
-                    f"{avg_acc:.4f}",
-                    f"{std_acc:.4f}",
-                    f"{best_f1:.4f}",
-                    f"{worst_f1:.4f}",
-                    f"{avg_f1:.4f}",
-                    f"{std_f1:.4f}",
-                    f"{best_rec:.4f}",
-                    f"{worst_rec:.4f}",
-                    f"{avg_rec:.4f}",
-                    f"{std_rec:.4f}"
-                )
-                self.results_table.insert("", "end", values=row_values)
+    def _format_diff(self, diff):
+        """Format difference with + or - sign"""
+        if diff > 0:
+            return f"+{diff:.4f}"
+        else:
+            return f"{diff:.4f}"
 
     def export_results(self):
         if not self.results:
