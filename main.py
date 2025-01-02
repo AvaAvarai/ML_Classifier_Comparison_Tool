@@ -169,70 +169,73 @@ class ClassifierApp:
     def build_classifiers_tab(self):
         self.selected_classifiers = {}
 
-        # We'll place them in two rows, each with 7 classifiers
-        top_frame = ttk.Frame(self.classifiers_frame)
-        top_frame.pack(fill=tk.X, pady=5)
+        # Create a frame to hold all classifier rows
+        classifiers_frame = ttk.Frame(self.classifiers_frame)
+        classifiers_frame.pack(fill=tk.X, pady=5)
 
-        bottom_frame = ttk.Frame(self.classifiers_frame)
-        bottom_frame.pack(fill=tk.X, pady=5)
-
-        # Classifiers with names and acronyms
-        classifiers_row1 = [
-            ("Decision Tree", "DT"),
-            ("Random Forest", "RF"),
-            ("Extra Trees", "ET"),
-            ("K-Nearest Neighbors", "KNN"),
-            ("Support Vector Machine", "SVM"),
-            ("Linear Discriminant Analysis", "LDA"),
-            ("Logistic Regression", "LR"),
+        # Classifiers with names and acronyms - now in 4 rows
+        classifier_rows = [
+            # Row 1
+            [
+                ("Decision Tree", "DT"),
+                ("Random Forest", "RF"),
+                ("Extra Trees", "ET"),
+                ("KNN", "KNN"),
+            ],
+            # Row 2
+            [
+                ("Support Vector Machine", "SVM"),
+                ("Linear Discriminant Analysis", "LDA"),
+                ("Logistic Regression", "LR"),
+                ("Ridge Classifier", "RC"),
+            ],
+            # Row 3
+            [
+                ("Gaussian Naive Bayes", "GNB"),
+                ("Multi-Layer Perceptron", "MLP"),
+                ("SGD", "SGD"),
+                ("Gradient Boosting Classifier", "GB"),
+            ],
+            # Row 4
+            [
+                ("AdaBoost Classifier", "AB"),
+                ("XGBoost Classifier", "XGB"),
+            ]
         ]
-        classifiers_row2 = [
-            ("Ridge Classifier", "RC"),
-            ("Gaussian Naive Bayes", "GNB"),
-            ("Multi-Layer Perceptron", "MLP"),
-            ("Stochastic Gradient Descent", "SGD"),
-            ("Gradient Boosting Classifier", "GB"),
-            ("AdaBoost Classifier", "AB"),
-            ("XGBoost Classifier", "XGB"),
-        ]
 
-        # Row 1
-        for i, (clf_display_name, acronym) in enumerate(classifiers_row1):
-            var = tk.BooleanVar(value=False)
-            chk = tk.Checkbutton(
-                top_frame, text=f"{clf_display_name} ({acronym})", variable=var
-            )
-            chk.grid(row=0, column=i, padx=5, pady=5, sticky=tk.W)
-            # Map the short internal name to the variable
-            internal_name = {
-                "Decision Tree": "Decision Tree",
-                "Random Forest": "Random Forest",
-                "Extra Trees": "Extra Trees",
-                "K-Nearest Neighbors": "KNN",
-                "Support Vector Machine": "SVM",
-                "Linear Discriminant Analysis": "LDA",
-                "Logistic Regression": "Logistic Regression",
-            }[clf_display_name]
-            self.selected_classifiers[internal_name] = var
-
-        # Row 2
-        for i, (clf_display_name, acronym) in enumerate(classifiers_row2):
-            var = tk.BooleanVar(value=False)
-            chk = tk.Checkbutton(
-                bottom_frame, text=f"{clf_display_name} ({acronym})", variable=var
-            )
-            chk.grid(row=1, column=i, padx=5, pady=5, sticky=tk.W)
-            # Map the short internal name to the variable
-            internal_name = {
-                "Ridge Classifier": "Ridge",
-                "Gaussian Naive Bayes": "Naive Bayes",
-                "Multi-Layer Perceptron": "MLP",
-                "Stochastic Gradient Descent": "SGD",
-                "Gradient Boosting Classifier": "Gradient Boosting",
-                "AdaBoost Classifier": "AdaBoost",
-                "XGBoost Classifier": "XGBoost",
-            }[clf_display_name]
-            self.selected_classifiers[internal_name] = var
+        # Create checkboxes for each classifier
+        for row_idx, row_classifiers in enumerate(classifier_rows):
+            for col_idx, (clf_display_name, acronym) in enumerate(row_classifiers):
+                var = tk.BooleanVar(value=False)
+                chk = tk.Checkbutton(
+                    classifiers_frame,
+                    text=f"{clf_display_name} ({acronym})",
+                    variable=var
+                )
+                chk.grid(row=row_idx, column=col_idx, padx=5, pady=5, sticky=tk.W)
+                
+                # Map the short internal name to the variable
+                internal_name = {
+                    # Row 1
+                    "Decision Tree": "Decision Tree",
+                    "Random Forest": "Random Forest",
+                    "Extra Trees": "Extra Trees",
+                    "KNN": "KNN",
+                    # Row 2
+                    "Support Vector Machine": "SVM",
+                    "Linear Discriminant Analysis": "LDA",
+                    "Logistic Regression": "Logistic Regression",
+                    "Ridge Classifier": "Ridge",
+                    # Row 3
+                    "Gaussian Naive Bayes": "Naive Bayes",
+                    "Multi-Layer Perceptron": "MLP",
+                    "SGD": "SGD",
+                    "Gradient Boosting Classifier": "Gradient Boosting",
+                    # Row 4
+                    "AdaBoost Classifier": "AdaBoost",
+                    "XGBoost Classifier": "XGBoost",
+                }[clf_display_name]
+                self.selected_classifiers[internal_name] = var
 
         # Common CV parameters
         common_params_frame = ttk.LabelFrame(
@@ -269,7 +272,7 @@ class ClassifierApp:
         lbl = ttk.Label(frame, text=label)
         lbl.pack(side=tk.LEFT, padx=5)
 
-        entry = ttk.Entry(frame, width=10)
+        entry = ttk.Entry(frame, width=8)
         entry.insert(0, default)
         entry.pack(side=tk.LEFT, padx=5)
 
@@ -581,7 +584,7 @@ class ClassifierApp:
 
         for col in self.results_table["columns"]:
             self.results_table.heading(col, text=col)
-            self.results_table.column(col, width=110, anchor=tk.CENTER)
+            self.results_table.column(col, width=80, anchor=tk.CENTER)
 
         self.results_table.pack(fill=tk.BOTH, expand=True, pady=10, padx=5)
 
@@ -682,8 +685,8 @@ class ClassifierApp:
             self.plot_canvas.get_tk_widget().destroy()
             plt.close('all')
 
-        # Create the figure
-        fig, ax = plt.subplots(figsize=(10, 6))
+        # Create the figure with a smaller width
+        fig, ax = plt.subplots(figsize=(8, 6))
 
         # Generate the parallel coordinates plot
         parallel_coordinates(
@@ -781,11 +784,9 @@ class ClassifierApp:
                     y_eval = self.label_encoder.transform(y_eval)
 
             self.results = []
-            any_convergence_issue = False
+            convergence_issues = set()  # To store names of classifiers with convergence issues
 
             for clf_name, var in self.selected_classifiers.items():
-                # Debug print
-                # print(f"Processing classifier: {clf_name}")
                 if not var.get():
                     continue
 
@@ -863,7 +864,7 @@ class ClassifierApp:
                     # Check for any ConvergenceWarning
                     for warning_msg in w:
                         if issubclass(warning_msg.category, ConvergenceWarning):
-                            any_convergence_issue = True
+                            convergence_issues.add(clf_name)
 
                 # best/worst/avg/std
                 best_acc = max(accuracy_scores)
@@ -888,11 +889,12 @@ class ClassifierApp:
                     best_rec, worst_rec, avg_rec, std_rec
                 ))
 
-            if any_convergence_issue:
+            if convergence_issues:
                 messagebox.showinfo(
                     "Convergence Notice",
-                    "Some classifiers reached max_iter before converging. "
-                    "Consider increasing max_iter or adjusting other hyperparameters."
+                    f"The following classifiers reached max_iter before converging:\n"
+                    f"{', '.join(sorted(convergence_issues))}\n\n"
+                    f"Consider increasing max_iter or adjusting other hyperparameters for these classifiers."
                 )
 
             self.update_results_table()
