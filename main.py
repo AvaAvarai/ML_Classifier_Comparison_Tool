@@ -44,6 +44,9 @@ class ClassifierApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Machine Learning Classifier Comparison Tool")
+        
+        # Set default window size
+        self.root.geometry("1080x720")  # Width x Height
 
         # Data holders
         self.data = None
@@ -245,48 +248,55 @@ class ClassifierApp:
             "Perceptron": ["numerical"]
         }
 
-        # Classifiers with names, acronyms, and data type hints
+        # Classifiers with names, acronyms, and data type hints - now in 3 columns
         classifier_rows = [
             # Row 1
             [
                 ("Decision Tree (All Types)", "DT"),
                 ("Random Forest (All Types)", "RF"),
                 ("Extra Trees (All Types)", "ET"),
-                ("KNN (Numerical)", "KNN"),
             ],
             # Row 2
             [
-                ("SVM (Numerical)", "SVM"),
-                ("LDA (Numerical)", "LDA"),
-                ("Logistic Regression (Numerical)", "LR"),
-                ("Ridge (Numerical)", "RC"),
+                ("K-Nearest Neighbors (Numerical)", "KNN"),
+                ("Support Vector Machine (Numerical)", "SVM"),
+                ("Linear Discriminant Analysis (Numerical)", "LDA"),
             ],
             # Row 3
             [
-                ("Gaussian NB (Numerical)", "GNB"),
-                ("Bernoulli NB (Binary)", "BNB"),
-                ("Multinomial NB (Counts/Text)", "MNB"),
-                ("QDA (Numerical)", "QDA"),
+                ("Logistic Regression (Numerical)", "LR"),
+                ("Ridge Classifier (Numerical)", "RC"),
+                ("Gaussian Naive Bayes (Numerical)", "GNB"),
             ],
             # Row 4
             [
-                ("MLP (Numerical)", "MLP"),
-                ("SGD (Numerical)", "SGD"),
-                ("Gradient Boosting (All Types)", "GB"),
-                ("AdaBoost (All Types)", "AB"),
+                ("Bernoulli Naive Bayes (Binary)", "BNB"),
+                ("Multinomial Naive Bayes (Counts/Text)", "MNB"),
+                ("Quadratic Discriminant Analysis (Numerical)", "QDA"),
             ],
             # Row 5
             [
-                ("XGBoost (All Types)", "XGB"),
-                ("CatBoost (Categorical)", "CB"),
-                ("LightGBM (All Types)", "LGBM"),
-                ("Passive Aggressive (Numerical)", "PA"),
+                ("Multi-Layer Perceptron (Numerical)", "MLP"),
+                ("Stochastic Gradient Descent (Numerical)", "SGD"),
+                ("Gradient Boosting (All Types)", "GB"),
             ],
             # Row 6
             [
+                ("AdaBoost (All Types)", "AB"),
+                ("XGBoost (All Types)", "XGB"),
+                ("CatBoost (Categorical)", "CB"),
+            ],
+            # Row 7
+            [
+                ("LightGBM (All Types)", "LGBM"),
+                ("Passive Aggressive Classifier (Numerical)", "PA"),
                 ("Perceptron (Numerical)", "PCP"),
             ]
         ]
+
+        # Configure grid columns to be equal width
+        for i in range(3):
+            classifiers_frame.grid_columnconfigure(i, weight=1)
 
         # Create checkboxes for each classifier - start from row 1 instead of 0
         for row_idx, row_classifiers in enumerate(classifier_rows):
@@ -305,28 +315,29 @@ class ClassifierApp:
                     "Decision Tree (All Types)": "Decision Tree",
                     "Random Forest (All Types)": "Random Forest",
                     "Extra Trees (All Types)": "Extra Trees",
-                    "KNN (Numerical)": "KNN",
                     # Row 2
-                    "SVM (Numerical)": "SVM",
-                    "LDA (Numerical)": "LDA",
-                    "Logistic Regression (Numerical)": "Logistic Regression",
-                    "Ridge (Numerical)": "Ridge",
+                    "K-Nearest Neighbors (Numerical)": "KNN",
+                    "Support Vector Machine (Numerical)": "SVM",
+                    "Linear Discriminant Analysis (Numerical)": "LDA",
                     # Row 3
-                    "Gaussian NB (Numerical)": "Naive Bayes",
-                    "Bernoulli NB (Binary)": "Bernoulli NB",
-                    "Multinomial NB (Counts/Text)": "Multinomial NB",
-                    "QDA (Numerical)": "QDA",
+                    "Logistic Regression (Numerical)": "Logistic Regression",
+                    "Ridge Classifier (Numerical)": "Ridge",
+                    "Gaussian Naive Bayes (Numerical)": "Naive Bayes",
                     # Row 4
-                    "MLP (Numerical)": "MLP",
-                    "SGD (Numerical)": "SGD",
-                    "Gradient Boosting (All Types)": "Gradient Boosting",
-                    "AdaBoost (All Types)": "AdaBoost",
+                    "Bernoulli Naive Bayes (Binary)": "Bernoulli NB",
+                    "Multinomial Naive Bayes (Counts/Text)": "Multinomial NB",
+                    "Quadratic Discriminant Analysis (Numerical)": "QDA",
                     # Row 5
+                    "Multi-Layer Perceptron (Numerical)": "MLP",
+                    "Stochastic Gradient Descent (Numerical)": "SGD",
+                    "Gradient Boosting (All Types)": "Gradient Boosting",
+                    # Row 6
+                    "AdaBoost (All Types)": "AdaBoost",
                     "XGBoost (All Types)": "XGBoost",
                     "CatBoost (Categorical)": "CatBoost",
+                    # Row 7
                     "LightGBM (All Types)": "LightGBM",
-                    "Passive Aggressive (Numerical)": "Passive Aggressive",
-                    # Row 6
+                    "Passive Aggressive Classifier (Numerical)": "Passive Aggressive",
                     "Perceptron (Numerical)": "Perceptron",
                 }[clf_display_name]
                 self.selected_classifiers[internal_name] = var
