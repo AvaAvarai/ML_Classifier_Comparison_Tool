@@ -42,8 +42,8 @@ The **Machine Learning Classifier Comparison Tool** helps benchmark and compare 
 ## Getting Started
 
 1. Clone the repository
-2. Run `pip install numpy pandas scikit-learn xgboost catboost lightgbm matplotlib pyyaml`
-3. Run the `main.py` file
+2. Run `pip install -r requirements.txt`
+3. Run the `main.py` file with `python main.py` or `python3 main.py` depending on your python installation.
 
 ## Planned Enhancements
 
