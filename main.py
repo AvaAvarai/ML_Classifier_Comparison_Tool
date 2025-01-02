@@ -393,11 +393,11 @@ class ClassifierApp:
             default="5",
         )
         self.run_count = self.add_param_entry(
-            parent=common_params_frame, label="Run Count (>=1):", default="10"
+            parent=common_params_frame, label="Classifier train and evaluation runs count (>=1):", default="10"
         )
         self.random_seed = self.add_param_entry(
             parent=common_params_frame,
-            label="Random Seed:",
+            label="Random number generator seed for CV and classifiers:",
             default=str(random.randint(0, 10**6)),
         )
 
@@ -709,7 +709,7 @@ class ClassifierApp:
             text=f"Toggle Normalization ({'On' if self.normalize_var.get() else 'Off'})"
         )
         # Redraw the visualization if we have results
-        if hasattr(self, 'results') and self.results:
+        if hasattr(self, 'train_results') and self.train_results:
             self.visualize_results()
 
     def toggle_axes(self):
@@ -720,26 +720,33 @@ class ClassifierApp:
             text=f"Toggle Axes ({'On' if self.show_axes_var.get() else 'Off'})"
         )
         # Redraw the visualization if we have results
-        if hasattr(self, 'results') and self.results:
+        if hasattr(self, 'train_results') and self.train_results:
             self.visualize_results()
 
     def visualize_results(self):
-        """
-        Build a parallel coordinates plot from self.results,
-        then embed it in the "Plot" tab via FigureCanvasTkAgg.
-        """
-        if not self.results:
+        """Build parallel coordinates plots for training and evaluation results"""
+        if not hasattr(self, 'train_results') or not self.train_results:
             messagebox.showerror("Error", "No results to visualize.")
             return
 
-        # Convert self.results => DataFrame
+        # Convert results to DataFrames
         columns = [
             "Classifier",
             "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
             "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
             "REC Best", "REC Worst", "REC Avg", "REC Std"
         ]
-        df = pd.DataFrame(self.results, columns=columns)
+        
+        train_df = pd.DataFrame(self.train_results, columns=columns)
+        train_df['Dataset'] = 'Training'
+        
+        if hasattr(self, 'eval_results') and self.eval_results:
+            eval_df = pd.DataFrame(self.eval_results, columns=columns)
+            eval_df['Dataset'] = 'Evaluation'
+            # Combine the dataframes
+            df = pd.concat([train_df, eval_df], ignore_index=True)
+        else:
+            df = train_df
 
         # Check normalization toggle
         numerical_cols = [
@@ -791,15 +798,19 @@ class ClassifierApp:
                 })
 
         # Plot each classifier's line with a unique style
-        for idx, classifier in enumerate(df['Classifier'].unique()):
-            classifier_data = df[df['Classifier'] == classifier]
+        for idx, (classifier, dataset) in enumerate(df.groupby(['Classifier', 'Dataset'])):
+            classifier_name, dataset_type = classifier  # Unpack the tuple
+            classifier_data = df[(df['Classifier'] == classifier_name) & (df['Dataset'] == dataset_type)]
+            
+            # Create label with classifier name and dataset type
+            label = f"{classifier_name} ({dataset_type})"
             
             # Plot the parallel coordinates for this classifier
             for i in range(len(numerical_cols)-1):
                 ax.plot(
                     [i, i+1],
-                    [classifier_data[numerical_cols[i]], classifier_data[numerical_cols[i+1]]],
-                    label=classifier if i == 0 else "_nolegend_",
+                    [classifier_data[numerical_cols[i]], classifier_data[numerical_cols[i+1]]],  # Fixed brackets
+                    label=label if i == 0 else "_nolegend_",
                     **style_cycler[idx]
                 )
 
@@ -912,12 +923,14 @@ class ClassifierApp:
                 if y_eval.dtype == object or y_eval.dtype.kind in {'U', 'S'}:
                     y_eval = self.label_encoder.transform(y_eval)
 
-            self.results = []
+            # Create separate lists for training and evaluation results
+            self.train_results = []
+            self.eval_results = []
             convergence_issues = set()
 
-            # Count total operations for progress bar
+            # Count total operations for progress bar - double if using eval data
             selected_clf_count = sum(1 for var in self.selected_classifiers.values() if var.get())
-            total_operations = selected_clf_count * run_count
+            total_operations = selected_clf_count * run_count * (2 if use_eval else 1)
             current_operation = 0
             
             # Reset and show progress bar
@@ -929,24 +942,29 @@ class ClassifierApp:
                     continue
 
                 # Update status to show classifier name and total runs
-                self.status_label['text'] = f"Running {clf_name} (0/{run_count} runs)..."
+                self.status_label['text'] = f"Training - Running {clf_name} (0/{run_count} runs)..."
                 self.root.update()
 
                 hyperparams = self.parse_hyperparams(clf_name)
                 classifier = self.build_classifier(clf_name, hyperparams, random_seed)
 
-                accuracy_scores = []
-                f1_scores = []
-                recall_scores = []
+                # Training results collection
+                train_accuracy_scores = []
+                train_f1_scores = []
+                train_recall_scores = []
+
+                # Evaluation results collection (if using eval data)
+                eval_accuracy_scores = []
+                eval_f1_scores = []
+                eval_recall_scores = []
 
                 with warnings.catch_warnings(record=True) as w:
                     warnings.simplefilter("always", ConvergenceWarning)
 
                     for run_i in range(run_count):
-                        # Update progress and status with current run number
                         current_operation += 1
                         self.progress_bar['value'] = current_operation
-                        self.status_label['text'] = f"Running {clf_name} ({run_i + 1}/{run_count} runs)..."
+                        self.status_label['text'] = f"Training - Running {clf_name} ({run_i + 1}/{run_count} runs)..."
                         self.root.update()
 
                         seed_for_run = random_seed + run_i
@@ -954,88 +972,79 @@ class ClassifierApp:
                         random.seed(seed_for_run)
 
                         if num_splits == 1:
-                            # NO CROSS-VALIDATION
+                            # Train on full training data
                             classifier.random_state = seed_for_run
                             classifier.fit(X_main, y_main)
 
+                            # Get training scores
+                            train_preds = classifier.predict(X_main)
+                            train_accuracy_scores.append(accuracy_score(y_main, train_preds))
+                            train_f1_scores.append(f1_score(y_main, train_preds, average='macro'))
+                            train_recall_scores.append(recall_score(y_main, train_preds, average='macro'))
+
+                            # If evaluation data exists, get evaluation scores
                             if use_eval:
-                                preds = classifier.predict(X_eval)
-                                true_labels = y_eval
-                            else:
-                                preds = classifier.predict(X_main)
-                                true_labels = y_main
-
-                            acc_ = accuracy_score(true_labels, preds)
-                            f1_ = f1_score(true_labels, preds, average='macro')
-                            rec_ = recall_score(true_labels, preds, average='macro')
-
-                            accuracy_scores.append(acc_)
-                            f1_scores.append(f1_)
-                            recall_scores.append(rec_)
+                                eval_preds = classifier.predict(X_eval)
+                                eval_accuracy_scores.append(accuracy_score(y_eval, eval_preds))
+                                eval_f1_scores.append(f1_score(y_eval, eval_preds, average='macro'))
+                                eval_recall_scores.append(recall_score(y_eval, eval_preds, average='macro'))
 
                         else:
-                            # CROSS-VALIDATION
+                            # Cross-validation
                             cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
+                            
+                            # Training data CV
+                            scores = cross_validate(
+                                classifier,
+                                X_main,
+                                y_main,
+                                cv=cv,
+                                scoring={'acc': 'accuracy', 'f1': 'f1_macro', 'rec': 'recall_macro'},
+                                return_train_score=False
+                            )
+                            train_accuracy_scores.extend(scores['test_acc'])
+                            train_f1_scores.extend(scores['test_f1'])
+                            train_recall_scores.extend(scores['test_rec'])
 
-                            if not use_eval:
-                                # CV on main data
-                                scores = cross_validate(
-                                    classifier,
-                                    X_main,
-                                    y_main,
-                                    cv=cv,
-                                    scoring={'acc': 'accuracy', 'f1': 'f1_macro', 'rec': 'recall_macro'},
-                                    return_train_score=False
-                                )
-                                accuracy_scores.extend(scores['test_acc'])
-                                f1_scores.extend(scores['test_f1'])
-                                recall_scores.extend(scores['test_rec'])
-                            else:
-                                # CV on eval data, always train on full main data
-                                idxs = np.arange(len(X_eval))
-                                for train_idx, test_idx in cv.split(idxs):
-                                    X_eval_fold = X_eval.iloc[test_idx]
-                                    y_eval_fold = y_eval[test_idx]
-
-                                    classifier.random_state = seed_for_run
+                            # If evaluation data exists, do CV on it too
+                            if use_eval:
+                                eval_cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
+                                for train_idx, test_idx in eval_cv.split(X_eval):
+                                    # Train on full training data
                                     classifier.fit(X_main, y_main)
-                                    preds = classifier.predict(X_eval_fold)
+                                    # Evaluate on eval data fold
+                                    X_eval_test = X_eval.iloc[test_idx]
+                                    y_eval_test = y_eval[test_idx]
+                                    eval_preds = classifier.predict(X_eval_test)
+                                    eval_accuracy_scores.append(accuracy_score(y_eval_test, eval_preds))
+                                    eval_f1_scores.append(f1_score(y_eval_test, eval_preds, average='macro'))
+                                    eval_recall_scores.append(recall_score(y_eval_test, eval_preds, average='macro'))
 
-                                    acc_ = accuracy_score(y_eval_fold, preds)
-                                    f1_ = f1_score(y_eval_fold, preds, average='macro')
-                                    rec_ = recall_score(y_eval_fold, preds, average='macro')
-
-                                    accuracy_scores.append(acc_)
-                                    f1_scores.append(f1_)
-                                    recall_scores.append(rec_)
-
-                    # Check for any ConvergenceWarning
-                    for warning_msg in w:
-                        if issubclass(warning_msg.category, ConvergenceWarning):
-                            convergence_issues.add(clf_name)
-
-                # best/worst/avg/std
-                best_acc = max(accuracy_scores)
-                worst_acc = min(accuracy_scores)
-                avg_acc = np.mean(accuracy_scores)
-                std_acc = np.std(accuracy_scores)
-
-                best_f1 = max(f1_scores)
-                worst_f1 = min(f1_scores)
-                avg_f1 = np.mean(f1_scores)
-                std_f1 = np.std(f1_scores)
-
-                best_rec = max(recall_scores)
-                worst_rec = min(recall_scores)
-                avg_rec = np.mean(recall_scores)
-                std_rec = np.std(recall_scores)
-
-                self.results.append((
+                # Add training results
+                self.train_results.append((
                     clf_name,
-                    best_acc, worst_acc, avg_acc, std_acc,
-                    best_f1, worst_f1, avg_f1, std_f1,
-                    best_rec, worst_rec, avg_rec, std_rec
+                    max(train_accuracy_scores), min(train_accuracy_scores), 
+                    np.mean(train_accuracy_scores), np.std(train_accuracy_scores),
+                    max(train_f1_scores), min(train_f1_scores), 
+                    np.mean(train_f1_scores), np.std(train_f1_scores),
+                    max(train_recall_scores), min(train_recall_scores), 
+                    np.mean(train_recall_scores), np.std(train_recall_scores)
                 ))
+
+                # Add evaluation results if they exist
+                if use_eval:
+                    self.eval_results.append((
+                        clf_name,
+                        max(eval_accuracy_scores), min(eval_accuracy_scores), 
+                        np.mean(eval_accuracy_scores), np.std(eval_accuracy_scores),
+                        max(eval_f1_scores), min(eval_f1_scores), 
+                        np.mean(eval_f1_scores), np.std(eval_f1_scores),
+                        max(eval_recall_scores), min(eval_recall_scores), 
+                        np.mean(eval_recall_scores), np.std(eval_recall_scores)
+                    ))
+
+            # Update results display
+            self.update_results_table()
 
             # Clear status when done
             self.status_label['text'] = "Completed!"
@@ -1050,7 +1059,6 @@ class ClassifierApp:
                     f"Consider increasing max_iter or adjusting other hyperparameters for these classifiers."
                 )
 
-            self.update_results_table()
             self.notebook.select(self.results_tab)
 
         except ValueError as e:
@@ -1224,30 +1232,59 @@ class ClassifierApp:
         for row in self.results_table.get_children():
             self.results_table.delete(row)
 
-        for res in self.results:
-            (
-                clf_name,
-                best_acc, worst_acc, avg_acc, std_acc,
-                best_f1, worst_f1, avg_f1, std_f1,
-                best_rec, worst_rec, avg_rec, std_rec
-            ) = res
+        # Add training results
+        if hasattr(self, 'train_results') and self.train_results:
+            for res in self.train_results:
+                (
+                    clf_name,
+                    best_acc, worst_acc, avg_acc, std_acc,
+                    best_f1, worst_f1, avg_f1, std_f1,
+                    best_rec, worst_rec, avg_rec, std_rec
+                ) = res
 
-            row_values = (
-                clf_name,
-                f"{best_acc:.4f}",
-                f"{worst_acc:.4f}",
-                f"{avg_acc:.4f}",
-                f"{std_acc:.4f}",
-                f"{best_f1:.4f}",
-                f"{worst_f1:.4f}",
-                f"{avg_f1:.4f}",
-                f"{std_f1:.4f}",
-                f"{best_rec:.4f}",
-                f"{worst_rec:.4f}",
-                f"{avg_rec:.4f}",
-                f"{std_rec:.4f}"
-            )
-            self.results_table.insert("", "end", values=row_values)
+                row_values = (
+                    f"{clf_name} (Training)",
+                    f"{best_acc:.4f}",
+                    f"{worst_acc:.4f}",
+                    f"{avg_acc:.4f}",
+                    f"{std_acc:.4f}",
+                    f"{best_f1:.4f}",
+                    f"{worst_f1:.4f}",
+                    f"{avg_f1:.4f}",
+                    f"{std_f1:.4f}",
+                    f"{best_rec:.4f}",
+                    f"{worst_rec:.4f}",
+                    f"{avg_rec:.4f}",
+                    f"{std_rec:.4f}"
+                )
+                self.results_table.insert("", "end", values=row_values)
+
+        # Add evaluation results if they exist
+        if hasattr(self, 'eval_results') and self.eval_results:
+            for res in self.eval_results:
+                (
+                    clf_name,
+                    best_acc, worst_acc, avg_acc, std_acc,
+                    best_f1, worst_f1, avg_f1, std_f1,
+                    best_rec, worst_rec, avg_rec, std_rec
+                ) = res
+
+                row_values = (
+                    f"{clf_name} (Evaluation)",
+                    f"{best_acc:.4f}",
+                    f"{worst_acc:.4f}",
+                    f"{avg_acc:.4f}",
+                    f"{std_acc:.4f}",
+                    f"{best_f1:.4f}",
+                    f"{worst_f1:.4f}",
+                    f"{avg_f1:.4f}",
+                    f"{std_f1:.4f}",
+                    f"{best_rec:.4f}",
+                    f"{worst_rec:.4f}",
+                    f"{avg_rec:.4f}",
+                    f"{std_rec:.4f}"
+                )
+                self.results_table.insert("", "end", values=row_values)
 
     def export_results(self):
         if not self.results:
