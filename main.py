@@ -1305,7 +1305,7 @@ class ClassifierApp:
             return f"{diff:.4f}"
 
     def export_results(self):
-        if not self.results:
+        if not hasattr(self, 'train_results') or not self.train_results:
             messagebox.showerror("Error", "No results to export.")
             return
 
@@ -1316,14 +1316,57 @@ class ClassifierApp:
         if not file_path:
             return
 
-        df = pd.DataFrame(self.results, columns=[
+        # Get dataset statistics
+        train_stats = self.get_dataset_stats(self.data, self.class_column, "Training")
+        eval_stats = self.get_dataset_stats(self.eval_data, self.eval_class_column, "Evaluation") if self.eval_data is not None else []
+
+        # Write metadata as text first
+        with open(file_path, 'w') as f:
+            f.write("Execution Parameters\n")
+            f.write(f"Run Count,{self.run_count.get()}\n")
+            f.write(f"Random Seed,{self.random_seed.get()}\n")
+            f.write(f"CV Split Count,{self.cross_val_split.get()}\n\n")
+            f.write("Dataset Statistics\n")
+            for stat in train_stats:
+                f.write(",".join(map(str, stat)) + "\n")
+            if eval_stats:
+                f.write("\n")
+                for stat in eval_stats:
+                    f.write(",".join(map(str, stat)) + "\n")
+            f.write("\n")  # Add spacing before the results
+
+        # Write results as a dataframe
+        train_df = pd.DataFrame(self.train_results, columns=[
             "Classifier",
             "ACC Best", "ACC Worst", "ACC Avg", "ACC Std",
             "F1 Best", "F1 Worst", "F1 Avg", "F1 Std",
             "REC Best", "REC Worst", "REC Avg", "REC Std"
         ])
-        df.to_csv(file_path, index=False)
+        train_df.to_csv(file_path, index=False, mode='a')
         messagebox.showinfo("Success", "Results exported successfully.")
+
+    def get_dataset_stats(self, data, class_col, dataset_name):
+        """Get dataset statistics in a list of rows format"""
+        if data is None:
+            return []
+
+        type_analysis, types_count, dataset_type = self.analyze_data_types(data)
+        class_counts = data[class_col].value_counts()
+        total_cases = len(data)
+        balance_ratio = class_counts.min() / class_counts.max() if class_counts.max() != 0 else 0
+
+        stats = [
+            [f"{dataset_name} Dataset:"],
+            ["Total Cases", total_cases],
+            ["Number of Classes", len(class_counts)],
+            ["Class Distribution", str(class_counts.to_dict())],
+            ["Class Balance Ratio", f"{balance_ratio:.4f}"],
+            ["Dataset Type", dataset_type.upper()],
+            ["Feature Types", str(type_analysis)],
+            ["Missing Values", "None" if data.isnull().sum().sum() == 0 else f"{data.isnull().sum().sum()} missing values"]
+        ]
+        
+        return stats
 
     def cleanup(self):
         # Properly close and clean up matplotlib figures
