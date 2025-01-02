@@ -23,9 +23,13 @@ from sklearn.ensemble import (
     ExtraTreesClassifier,
     GradientBoostingClassifier
 )
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
 from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
+from sklearn.naive_bayes import BernoulliNB, MultinomialNB
+from sklearn.linear_model import PassiveAggressiveClassifier, Perceptron
+from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
 
 from tkinter import ttk
 
@@ -192,33 +196,46 @@ class ClassifierApp:
         )
         self.select_all_button.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
 
-        # Classifiers with names and acronyms - now in 4 rows
+        # Classifiers with names, acronyms, and data type hints
         classifier_rows = [
             # Row 1
             [
-                ("Decision Tree", "DT"),
-                ("Random Forest", "RF"),
-                ("Extra Trees", "ET"),
-                ("KNN", "KNN"),
+                ("Decision Tree (All Types)", "DT"),
+                ("Random Forest (All Types)", "RF"),
+                ("Extra Trees (All Types)", "ET"),
+                ("KNN (Numerical)", "KNN"),
             ],
             # Row 2
             [
-                ("Support Vector Machine", "SVM"),
-                ("Linear Discriminant Analysis", "LDA"),
-                ("Logistic Regression", "LR"),
-                ("Ridge Classifier", "RC"),
+                ("SVM (Numerical)", "SVM"),
+                ("LDA (Numerical)", "LDA"),
+                ("Logistic Regression (Numerical)", "LR"),
+                ("Ridge (Numerical)", "RC"),
             ],
             # Row 3
             [
-                ("Gaussian Naive Bayes", "GNB"),
-                ("Multi-Layer Perceptron", "MLP"),
-                ("SGD", "SGD"),
-                ("Gradient Boosting Classifier", "GB"),
+                ("Gaussian NB (Numerical)", "GNB"),
+                ("Bernoulli NB (Binary)", "BNB"),
+                ("Multinomial NB (Counts/Text)", "MNB"),
+                ("QDA (Numerical)", "QDA"),
             ],
             # Row 4
             [
-                ("AdaBoost Classifier", "AB"),
-                ("XGBoost Classifier", "XGB"),
+                ("MLP (Numerical)", "MLP"),
+                ("SGD (Numerical)", "SGD"),
+                ("Gradient Boosting (All Types)", "GB"),
+                ("AdaBoost (All Types)", "AB"),
+            ],
+            # Row 5
+            [
+                ("XGBoost (All Types)", "XGB"),
+                ("CatBoost (Categorical)", "CB"),
+                ("LightGBM (All Types)", "LGBM"),
+                ("Passive Aggressive (Numerical)", "PA"),
+            ],
+            # Row 6
+            [
+                ("Perceptron (Numerical)", "PCP"),
             ]
         ]
 
@@ -236,23 +253,32 @@ class ClassifierApp:
                 # Map the short internal name to the variable
                 internal_name = {
                     # Row 1
-                    "Decision Tree": "Decision Tree",
-                    "Random Forest": "Random Forest",
-                    "Extra Trees": "Extra Trees",
-                    "KNN": "KNN",
+                    "Decision Tree (All Types)": "Decision Tree",
+                    "Random Forest (All Types)": "Random Forest",
+                    "Extra Trees (All Types)": "Extra Trees",
+                    "KNN (Numerical)": "KNN",
                     # Row 2
-                    "Support Vector Machine": "SVM",
-                    "Linear Discriminant Analysis": "LDA",
-                    "Logistic Regression": "Logistic Regression",
-                    "Ridge Classifier": "Ridge",
+                    "SVM (Numerical)": "SVM",
+                    "LDA (Numerical)": "LDA",
+                    "Logistic Regression (Numerical)": "Logistic Regression",
+                    "Ridge (Numerical)": "Ridge",
                     # Row 3
-                    "Gaussian Naive Bayes": "Naive Bayes",
-                    "Multi-Layer Perceptron": "MLP",
-                    "SGD": "SGD",
-                    "Gradient Boosting Classifier": "Gradient Boosting",
+                    "Gaussian NB (Numerical)": "Naive Bayes",
+                    "Bernoulli NB (Binary)": "Bernoulli NB",
+                    "Multinomial NB (Counts/Text)": "Multinomial NB",
+                    "QDA (Numerical)": "QDA",
                     # Row 4
-                    "AdaBoost Classifier": "AdaBoost",
-                    "XGBoost Classifier": "XGBoost",
+                    "MLP (Numerical)": "MLP",
+                    "SGD (Numerical)": "SGD",
+                    "Gradient Boosting (All Types)": "Gradient Boosting",
+                    "AdaBoost (All Types)": "AdaBoost",
+                    # Row 5
+                    "XGBoost (All Types)": "XGBoost",
+                    "CatBoost (Categorical)": "CatBoost",
+                    "LightGBM (All Types)": "LightGBM",
+                    "Passive Aggressive (Numerical)": "Passive Aggressive",
+                    # Row 6
+                    "Perceptron (Numerical)": "Perceptron",
                 }[clf_display_name]
                 self.selected_classifiers[internal_name] = var
 
@@ -926,6 +952,41 @@ class ClassifierApp:
                 use_label_encoder=False,
                 eval_metric='logloss',
                 **{k: v for k, v in hyperparams.items() if k in ["n_estimators", "learning_rate", "max_depth"]}
+            )
+        elif clf_name == "QDA":
+            return QuadraticDiscriminantAnalysis(
+                **{k: v for k, v in hyperparams.items() if k in ["reg_param"]}
+            )
+        elif clf_name == "Bernoulli NB":
+            return BernoulliNB(
+                **{k: v for k, v in hyperparams.items() if k in ["alpha", "binarize"]}
+            )
+        elif clf_name == "Multinomial NB":
+            # Convert string 'True'/'False' to boolean if needed
+            if 'fit_prior' in hyperparams:
+                hyperparams['fit_prior'] = hyperparams['fit_prior'] in [True, 'True']
+            return MultinomialNB(
+                **{k: v for k, v in hyperparams.items() if k in ["alpha", "fit_prior"]}
+            )
+        elif clf_name == "CatBoost":
+            return CatBoostClassifier(
+                random_state=random_seed,
+                **{k: v for k, v in hyperparams.items() if k in ["iterations", "learning_rate", "depth"]}
+            )
+        elif clf_name == "LightGBM":
+            return LGBMClassifier(
+                random_state=random_seed,
+                **{k: v for k, v in hyperparams.items() if k in ["n_estimators", "learning_rate", "max_depth"]}
+            )
+        elif clf_name == "Passive Aggressive":
+            return PassiveAggressiveClassifier(
+                random_state=random_seed,
+                **{k: v for k, v in hyperparams.items() if k in ["C", "max_iter"]}
+            )
+        elif clf_name == "Perceptron":
+            return Perceptron(
+                random_state=random_seed,
+                **{k: v for k, v in hyperparams.items() if k in ["alpha", "max_iter"]}
             )
         else:
             raise ValueError(f"Unknown classifier: {clf_name}")

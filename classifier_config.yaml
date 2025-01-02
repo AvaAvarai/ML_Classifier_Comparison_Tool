@@ -98,7 +98,7 @@ Naive Bayes:
 MLP:
   hidden_layer_sizes:
     type: text
-    default: (100, )
+    default: "(100, )"
     help: Layer sizes tuple, e.g. (100,50)
   activation:
     type: combo
@@ -171,4 +171,79 @@ XGBoost:
   max_depth:
     type: numeric
     default: "3"
-    help: Max tree depth (1-10 typical) 
+    help: Max tree depth (1-10 typical)
+
+QDA:
+  reg_param:
+    type: numeric
+    default: "0.0"
+    help: Regularization parameter (0.0-1.0)
+
+Bernoulli NB:
+  alpha:
+    type: numeric
+    default: "1.0"
+    help: Additive smoothing parameter (0.0+)
+  binarize:
+    type: numeric
+    default: "0.0"
+    help: Threshold for binarizing features
+
+Multinomial NB:
+  alpha:
+    type: numeric
+    default: "1.0"
+    help: Additive smoothing parameter (0.0+)
+  fit_prior:
+    type: combo
+    options: [True, False]
+    default: True
+    help: Learn class prior probabilities
+
+CatBoost:
+  iterations:
+    type: numeric
+    default: "100"
+    help: Number of trees
+  learning_rate:
+    type: numeric
+    default: "0.1"
+    help: Learning rate (0.01-0.3 typical)
+  depth:
+    type: numeric
+    default: "6"
+    help: Depth of trees (1-10 typical)
+
+LightGBM:
+  n_estimators:
+    type: numeric
+    default: "100"
+    help: Number of boosting rounds
+  learning_rate:
+    type: numeric
+    default: "0.1"
+    help: Learning rate
+  max_depth:
+    type: numeric
+    default: "-1"
+    help: Max tree depth (-1 for no limit)
+
+Passive Aggressive:
+  C:
+    type: numeric
+    default: "1.0"
+    help: Maximum step size (C > 0)
+  max_iter:
+    type: numeric
+    default: "1000"
+    help: Maximum number of iterations
+
+Perceptron:
+  alpha:
+    type: numeric
+    default: "0.0001"
+    help: Regularization parameter
+  max_iter:
+    type: numeric
+    default: "1000"
+    help: Number of iterations 
