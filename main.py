@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 import random
 import warnings
-import yaml  # Add this to imports at top
+import yaml
+import os
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import cross_validate, KFold
@@ -891,6 +892,12 @@ class ClassifierApp:
     # Running classifiers
     # ------------------------------------------------------------------------
     def run_classifiers(self):
+        # Helper function for setting all random seeds
+        def set_all_seeds(seed):
+            random.seed(seed)
+            np.random.seed(seed)
+            os.environ['PYTHONHASHSEED'] = str(seed)
+
         if self.data is None:
             messagebox.showerror("Error", "No main dataset loaded.")
             return
@@ -898,13 +905,14 @@ class ClassifierApp:
         try:
             num_splits = int(self.cross_val_split.get())
             if num_splits < 1:
-                raise ValueError("Cross-validation splits must be at least 1")
+                raise ValueError("Cross-validation splits must be >= 1")
 
             run_count = int(self.run_count.get())
             if run_count < 1:
-                raise ValueError("Run count must be at least 1")
+                raise ValueError("Run count must be >= 1")
 
             random_seed = int(self.random_seed.get())
+            set_all_seeds(random_seed)  # Set initial seeds
 
             # Main data
             X_main = self.data.drop(columns=self.class_column)
@@ -963,27 +971,25 @@ class ClassifierApp:
                     warnings.simplefilter("always", ConvergenceWarning)
 
                     for run_i in range(run_count):
+                        seed_for_run = random_seed + run_i
+                        set_all_seeds(seed_for_run)  # Set all seeds for this run
+
                         current_operation += 1
                         self.progress_bar['value'] = current_operation
                         self.status_label['text'] = f"Training - Running {clf_name} ({run_i + 1}/{run_count} runs)..."
                         self.root.update()
 
-                        seed_for_run = random_seed + run_i
-                        np.random.seed(seed_for_run)
-                        random.seed(seed_for_run)
-
                         if num_splits == 1:
-                            # Train on full training data
+                            # No CV - train on full dataset
                             classifier.random_state = seed_for_run
                             classifier.fit(X_main, y_main)
 
-                            # Get training scores
+                            # Get predictions using the same model instance for both datasets
                             train_preds = classifier.predict(X_main)
                             train_accuracy_scores.append(accuracy_score(y_main, train_preds))
                             train_f1_scores.append(f1_score(y_main, train_preds, average='macro'))
                             train_recall_scores.append(recall_score(y_main, train_preds, average='macro'))
 
-                            # If evaluation data exists, get evaluation scores
                             if use_eval:
                                 eval_preds = classifier.predict(X_eval)
                                 eval_accuracy_scores.append(accuracy_score(y_eval, eval_preds))
@@ -991,31 +997,33 @@ class ClassifierApp:
                                 eval_recall_scores.append(recall_score(y_eval, eval_preds, average='macro'))
 
                         else:
-                            # Cross-validation
+                            # Use same CV splits and same random state for both datasets
                             cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
                             
-                            # Training data CV
-                            scores = cross_validate(
-                                classifier,
-                                X_main,
-                                y_main,
-                                cv=cv,
-                                scoring={'acc': 'accuracy', 'f1': 'f1_macro', 'rec': 'recall_macro'},
-                                return_train_score=False
-                            )
-                            train_accuracy_scores.extend(scores['test_acc'])
-                            train_f1_scores.extend(scores['test_f1'])
-                            train_recall_scores.extend(scores['test_rec'])
+                            # For each fold, use the same model instance for both predictions
+                            for train_idx, test_idx in cv.split(X_main):
+                                X_train = X_main.iloc[train_idx]
+                                X_test = X_main.iloc[test_idx]
+                                y_train = y_main[train_idx]
+                                y_test = y_main[test_idx]
 
-                            # If evaluation data exists, do CV on it too
-                            if use_eval:
-                                eval_cv = KFold(n_splits=num_splits, shuffle=True, random_state=seed_for_run)
-                                for train_idx, test_idx in eval_cv.split(X_eval):
-                                    # Train on full training data
-                                    classifier.fit(X_main, y_main)
-                                    # Evaluate on eval data fold
+                                # If using eval data, get the same test indices for it
+                                if use_eval:
                                     X_eval_test = X_eval.iloc[test_idx]
                                     y_eval_test = y_eval[test_idx]
+
+                                # Train once
+                                classifier.random_state = seed_for_run
+                                classifier.fit(X_train, y_train)
+
+                                # Get predictions using the same trained model
+                                train_preds = classifier.predict(X_test)
+                                train_accuracy_scores.append(accuracy_score(y_test, train_preds))
+                                train_f1_scores.append(f1_score(y_test, train_preds, average='macro'))
+                                train_recall_scores.append(recall_score(y_test, train_preds, average='macro'))
+
+                                if use_eval:
+                                    # Evaluate on the same test fold from eval data
                                     eval_preds = classifier.predict(X_eval_test)
                                     eval_accuracy_scores.append(accuracy_score(y_eval_test, eval_preds))
                                     eval_f1_scores.append(f1_score(y_eval_test, eval_preds, average='macro'))
