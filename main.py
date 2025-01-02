@@ -370,6 +370,22 @@ class ClassifierApp:
         )
         self.run_button.pack(pady=5)
 
+        # Add status frame at the bottom
+        self.status_frame = ttk.Frame(self.classifiers_frame)
+        self.status_frame.pack(fill=tk.X, pady=5, padx=5)
+        
+        # Progress bar
+        self.progress_bar = ttk.Progressbar(
+            self.status_frame, 
+            mode='determinate',
+            length=300
+        )
+        self.progress_bar.pack(fill=tk.X, pady=2)
+        
+        # Status label
+        self.status_label = ttk.Label(self.status_frame, text="")
+        self.status_label.pack(pady=2)
+
     def toggle_all_classifiers(self):
         """Toggle all classifiers on/off"""
         # Toggle the state
@@ -801,11 +817,23 @@ class ClassifierApp:
                     y_eval = self.label_encoder.transform(y_eval)
 
             self.results = []
-            convergence_issues = set()  # To store names of classifiers with convergence issues
+            convergence_issues = set()
 
+            # Count total operations for progress bar
+            selected_clf_count = sum(1 for var in self.selected_classifiers.values() if var.get())
+            total_operations = selected_clf_count * run_count
+            current_operation = 0
+            
+            # Reset and show progress bar
+            self.progress_bar['value'] = 0
+            self.progress_bar['maximum'] = total_operations
+            
             for clf_name, var in self.selected_classifiers.items():
                 if not var.get():
                     continue
+
+                self.status_label['text'] = f"Running {clf_name}..."
+                self.root.update()
 
                 hyperparams = self.parse_hyperparams(clf_name)
                 classifier = self.build_classifier(clf_name, hyperparams, random_seed)
@@ -818,6 +846,11 @@ class ClassifierApp:
                     warnings.simplefilter("always", ConvergenceWarning)
 
                     for run_i in range(run_count):
+                        # Update progress
+                        current_operation += 1
+                        self.progress_bar['value'] = current_operation
+                        self.root.update()
+
                         seed_for_run = random_seed + run_i
                         np.random.seed(seed_for_run)
                         random.seed(seed_for_run)
@@ -905,6 +938,11 @@ class ClassifierApp:
                     best_f1, worst_f1, avg_f1, std_f1,
                     best_rec, worst_rec, avg_rec, std_rec
                 ))
+
+            # Clear status when done
+            self.status_label['text'] = "Completed!"
+            self.progress_bar['value'] = total_operations
+            self.root.update()
 
             if convergence_issues:
                 messagebox.showinfo(
