@@ -677,9 +677,6 @@ class ClassifierApp:
             scaler = MinMaxScaler()
             df[numerical_cols] = scaler.fit_transform(df[numerical_cols])
 
-        # parallel_coordinates needs a 'class' column for color grouping
-        df["Classifier"] = df["Classifier"].astype(str)
-
         # Clear the previous plot if it exists
         if self.plot_canvas:
             self.plot_canvas.get_tk_widget().destroy()
@@ -688,22 +685,48 @@ class ClassifierApp:
         # Create the figure with a smaller width
         fig, ax = plt.subplots(figsize=(8, 6))
 
-        # Generate the parallel coordinates plot
-        parallel_coordinates(
-            df,
-            class_column="Classifier",
-            cols=numerical_cols,
-            color=plt.cm.tab10.colors,
-            alpha=0.75
-        )
+        # Define line styles and colors
+        line_styles = ['-', '--', ':', '-.']
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+                  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        
+        # Create unique combinations of colors and line styles
+        style_cycler = []
+        num_classifiers = len(df)
+        for i in range(num_classifiers):
+            color_idx = i % len(colors)
+            style_idx = i // len(colors)
+            style_cycler.append({
+                'color': colors[color_idx],
+                'linestyle': line_styles[style_idx % len(line_styles)]
+            })
+
+        # Plot each classifier's line with a unique style
+        for idx, classifier in enumerate(df['Classifier'].unique()):
+            classifier_data = df[df['Classifier'] == classifier]
+            
+            # Plot the parallel coordinates for this classifier
+            for i in range(len(numerical_cols)-1):
+                ax.plot(
+                    [i, i+1],
+                    [classifier_data[numerical_cols[i]], classifier_data[numerical_cols[i+1]]],
+                    label=classifier if i == 0 else "_nolegend_",
+                    **style_cycler[idx]
+                )
+
+        # Set the x-axis labels
+        ax.set_xticks(range(len(numerical_cols)))
+        ax.set_xticklabels(numerical_cols, rotation=45, ha='right')
 
         # Adjust the legend position
-        legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, frameon=False)
-        legend.set_title("Classifiers")
+        legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                          ncol=3, frameon=False, title="Classifiers")
 
         # Add a title and labels
         ax.set_title("Parallel Coordinates: Classifier Metrics")
         ax.set_ylabel("Normalized Metric Value" if self.normalize_var.get() else "Metric Value")
+        
+        # Adjust layout to prevent label cutoff
         plt.tight_layout()
 
         # Remove the placeholder label if it exists
