@@ -51,6 +51,219 @@ class ClassifierApp:
         # For storing results
         self.results = []
 
+        # Define parameter configurations
+        self.param_config = {
+            "Decision Tree": {
+                "criterion": {
+                    "type": "combo",
+                    "options": ["gini", "entropy", "log_loss"],
+                    "default": "gini",
+                    "help": "Split quality function"
+                },
+                "max_depth": {
+                    "type": "numeric",
+                    "default": "None",
+                    "help": "Max depth (None=unbounded)"
+                }
+            },
+            "Random Forest": {
+                "n_estimators": {
+                    "type": "numeric",
+                    "default": "100",
+                    "help": "Number of trees (e.g. 50-300)"
+                },
+                "criterion": {
+                    "type": "combo",
+                    "options": ["gini", "entropy", "log_loss"],
+                    "default": "gini",
+                    "help": "Split quality function"
+                },
+                "max_depth": {
+                    "type": "numeric",
+                    "default": "None",
+                    "help": "Max depth (None=unbounded)"
+                }
+            },
+            "Extra Trees": {
+                "n_estimators": {
+                    "type": "numeric",
+                    "default": "100",
+                    "help": "Number of trees (e.g. 50-300)"
+                },
+                "criterion": {
+                    "type": "combo",
+                    "options": ["gini", "entropy", "log_loss"],
+                    "default": "gini",
+                    "help": "Split quality function"
+                },
+                "max_depth": {
+                    "type": "numeric",
+                    "default": "None",
+                    "help": "Max depth (None=unbounded)"
+                }
+            },
+            "KNN": {
+                "n_neighbors": {
+                    "type": "numeric",
+                    "default": "5",
+                    "help": "Number of neighbors (1-20 typical)"
+                },
+                "weights": {
+                    "type": "combo",
+                    "options": ["uniform", "distance"],
+                    "default": "uniform",
+                    "help": "Uniform or distance-based weighting"
+                }
+            },
+            "SVM": {
+                "kernel": {
+                    "type": "combo",
+                    "options": ["linear", "rbf", "poly", "sigmoid"],
+                    "default": "rbf",
+                    "help": "SVM kernel type"
+                },
+                "C": {
+                    "type": "numeric",
+                    "default": "1.0",
+                    "help": "Regularization strength (0.001-100)"
+                }
+            },
+            "LDA": {
+                "solver": {
+                    "type": "combo",
+                    "options": ["svd", "lsqr", "eigen"],
+                    "default": "svd",
+                    "help": "LDA solver"
+                }
+            },
+            "Logistic Regression": {
+                "solver": {
+                    "type": "combo",
+                    "options": ["lbfgs", "newton-cg", "liblinear", "sag", "saga"],
+                    "default": "lbfgs",
+                    "help": "Solver for optimization"
+                },
+                "max_iter": {
+                    "type": "numeric",
+                    "default": "1000",
+                    "help": "Max iteration count"
+                },
+                "C": {
+                    "type": "numeric",
+                    "default": "1.0",
+                    "help": "Inverse reg. strength (0.001-100)"
+                }
+            },
+            "Ridge": {
+                "alpha": {
+                    "type": "numeric",
+                    "default": "1.0",
+                    "help": "Regularization strength (0.0+)"
+                }
+            },
+            "Naive Bayes": {
+                "var_smoothing": {
+                    "type": "numeric",
+                    "default": "1e-9",
+                    "help": "Stability var. (1e-12 ~ 1e-7 typical)"
+                }
+            },
+            "MLP": {
+                "hidden_layer_sizes": {
+                    "type": "text",
+                    "default": "(100, )",
+                    "help": "Layer sizes tuple, e.g. (100,50)"
+                },
+                "activation": {
+                    "type": "combo",
+                    "options": ["identity", "logistic", "tanh", "relu"],
+                    "default": "relu",
+                    "help": "Activation function"
+                },
+                "solver": {
+                    "type": "combo",
+                    "options": ["lbfgs", "sgd", "adam"],
+                    "default": "adam",
+                    "help": "MLP solver"
+                },
+                "alpha": {
+                    "type": "numeric",
+                    "default": "0.0001",
+                    "help": "L2 penalty parameter"
+                },
+                "max_iter": {
+                    "type": "numeric",
+                    "default": "1000",
+                    "help": "Max training iterations"
+                }
+            },
+            "SGD": {
+                "loss": {
+                    "type": "combo",
+                    "options": ["hinge", "log", "modified_huber", "squared_hinge", "perceptron"],
+                    "default": "hinge",
+                    "help": "Loss function"
+                },
+                "penalty": {
+                    "type": "combo",
+                    "options": ["l2", "l1", "elasticnet"],
+                    "default": "l2",
+                    "help": "Regularization type"
+                },
+                "alpha": {
+                    "type": "numeric",
+                    "default": "0.0001",
+                    "help": "Constant for regularization"
+                }
+            },
+            "Gradient Boosting": {
+                "n_estimators": {
+                    "type": "numeric",
+                    "default": "100",
+                    "help": "Number of boosting stages"
+                },
+                "learning_rate": {
+                    "type": "numeric",
+                    "default": "0.1",
+                    "help": "Learning rate (0.01-1.0 typical)"
+                },
+                "max_depth": {
+                    "type": "numeric",
+                    "default": "3",
+                    "help": "Max depth (1-10 typical)"
+                }
+            },
+            "AdaBoost": {
+                "n_estimators": {
+                    "type": "numeric",
+                    "default": "100",
+                    "help": "Number of boosting stages"
+                },
+                "learning_rate": {
+                    "type": "numeric",
+                    "default": "1.0",
+                    "help": "Weight applied to each classifier"
+                }
+            },
+            "XGBoost": {
+                "n_estimators": {
+                    "type": "numeric",
+                    "default": "100",
+                    "help": "Number of boosting rounds"
+                },
+                "learning_rate": {
+                    "type": "numeric",
+                    "default": "0.1",
+                    "help": "Step size shrinkage (0.01-0.3 typical)"
+                },
+                "max_depth": {
+                    "type": "numeric",
+                    "default": "3",
+                    "help": "Max tree depth (1-10 typical)"
+                }
+            }
+        }
+
         # Main Notebook for tabs
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -313,13 +526,12 @@ class ClassifierApp:
         canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Add these lines to bind mouse wheel to scrolling
+        # Add mouse wheel scrolling
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
-        # Bind enter/leave events to enable/disable mousewheel scrolling
         def _bind_mousewheel(event):
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
@@ -329,258 +541,68 @@ class ClassifierApp:
         canvas.bind('<Enter>', _bind_mousewheel)
         canvas.bind('<Leave>', _unbind_mousewheel)
 
+        # Create left and right columns
+        left_column = ttk.Frame(scroll_frame)
+        right_column = ttk.Frame(scroll_frame)
+        left_column.grid(row=0, column=0, padx=5, pady=5, sticky="n")
+        right_column.grid(row=0, column=1, padx=5, pady=5, sticky="n")
+
+        # Configure grid to make columns equal width
+        scroll_frame.grid_columnconfigure(0, weight=1)
+        scroll_frame.grid_columnconfigure(1, weight=1)
+
+        self.hyperparam_entries = {}
+        # Split classifiers into two groups
+        classifier_names = list(self.param_config.keys())
+        mid_point = (len(classifier_names) + 1) // 2
+
+        # Left column classifiers
+        for clf_name in classifier_names[:mid_point]:
+            group = ttk.LabelFrame(left_column, text=clf_name)
+            group.pack(fill=tk.X, padx=5, pady=5)
+            
+            self.hyperparam_entries[clf_name] = {}
+            for param_name, info in self.param_config[clf_name].items():
+                self._create_param_widget(group, clf_name, param_name, info)
+
+        # Right column classifiers
+        for clf_name in classifier_names[mid_point:]:
+            group = ttk.LabelFrame(right_column, text=clf_name)
+            group.pack(fill=tk.X, padx=5, pady=5)
+            
+            self.hyperparam_entries[clf_name] = {}
+            for param_name, info in self.param_config[clf_name].items():
+                self._create_param_widget(group, clf_name, param_name, info)
+
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.param_config = {
-            "Decision Tree": {
-                "criterion": {
-                    "type": "combo",
-                    "options": ["gini", "entropy", "log_loss"],
-                    "default": "gini",
-                    "help": "Split quality function"
-                },
-                "max_depth": {
-                    "type": "numeric",
-                    "default": "None",
-                    "help": "Max depth (None=unbounded)"
-                }
-            },
-            "Random Forest": {
-                "n_estimators": {
-                    "type": "numeric",
-                    "default": "100",
-                    "help": "Number of trees (e.g. 50-300)"
-                },
-                "criterion": {
-                    "type": "combo",
-                    "options": ["gini", "entropy", "log_loss"],
-                    "default": "gini",
-                    "help": "Split quality function"
-                },
-                "max_depth": {
-                    "type": "numeric",
-                    "default": "None",
-                    "help": "Max depth (None=unbounded)"
-                }
-            },
-            "Extra Trees": {
-                "n_estimators": {
-                    "type": "numeric",
-                    "default": "100",
-                    "help": "Number of trees (e.g. 50-300)"
-                },
-                "criterion": {
-                    "type": "combo",
-                    "options": ["gini", "entropy", "log_loss"],
-                    "default": "gini",
-                    "help": "Split quality function"
-                },
-                "max_depth": {
-                    "type": "numeric",
-                    "default": "None",
-                    "help": "Max depth (None=unbounded)"
-                }
-            },
-            "KNN": {
-                "n_neighbors": {
-                    "type": "numeric",
-                    "default": "5",
-                    "help": "Number of neighbors (1-20 typical)"
-                },
-                "weights": {
-                    "type": "combo",
-                    "options": ["uniform", "distance"],
-                    "default": "uniform",
-                    "help": "Uniform or distance-based weighting"
-                }
-            },
-            "SVM": {
-                "kernel": {
-                    "type": "combo",
-                    "options": ["linear", "rbf", "poly", "sigmoid"],
-                    "default": "rbf",
-                    "help": "SVM kernel type"
-                },
-                "C": {
-                    "type": "numeric",
-                    "default": "1.0",
-                    "help": "Regularization strength (0.001-100)"
-                }
-            },
-            "LDA": {
-                "solver": {
-                    "type": "combo",
-                    "options": ["svd", "lsqr", "eigen"],
-                    "default": "svd",
-                    "help": "LDA solver"
-                }
-            },
-            "Logistic Regression": {
-                "solver": {
-                    "type": "combo",
-                    "options": ["lbfgs", "newton-cg", "liblinear", "sag", "saga"],
-                    "default": "lbfgs",
-                    "help": "Solver for optimization"
-                },
-                "max_iter": {
-                    "type": "numeric",
-                    "default": "1000",
-                    "help": "Max iteration count"
-                },
-                "C": {
-                    "type": "numeric",
-                    "default": "1.0",
-                    "help": "Inverse reg. strength (0.001-100)"
-                }
-            },
-            "Ridge": {
-                "alpha": {
-                    "type": "numeric",
-                    "default": "1.0",
-                    "help": "Regularization strength (0.0+)"
-                }
-            },
-            "Naive Bayes": {
-                "var_smoothing": {
-                    "type": "numeric",
-                    "default": "1e-9",
-                    "help": "Stability var. (1e-12 ~ 1e-7 typical)"
-                }
-            },
-            "MLP": {
-                "hidden_layer_sizes": {
-                    "type": "text",
-                    "default": "(100, )",
-                    "help": "Layer sizes tuple, e.g. (100,50)"
-                },
-                "activation": {
-                    "type": "combo",
-                    "options": ["identity", "logistic", "tanh", "relu"],
-                    "default": "relu",
-                    "help": "Activation function"
-                },
-                "solver": {
-                    "type": "combo",
-                    "options": ["lbfgs", "sgd", "adam"],
-                    "default": "adam",
-                    "help": "MLP solver"
-                },
-                "alpha": {
-                    "type": "numeric",
-                    "default": "0.0001",
-                    "help": "L2 penalty parameter"
-                },
-                "max_iter": {
-                    "type": "numeric",
-                    "default": "1000",
-                    "help": "Max training iterations"
-                }
-            },
-            "SGD": {
-                "loss": {
-                    "type": "combo",
-                    "options": ["hinge", "log", "modified_huber", "squared_hinge", "perceptron"],
-                    "default": "hinge",
-                    "help": "Loss function"
-                },
-                "penalty": {
-                    "type": "combo",
-                    "options": ["l2", "l1", "elasticnet"],
-                    "default": "l2",
-                    "help": "Regularization type"
-                },
-                "alpha": {
-                    "type": "numeric",
-                    "default": "0.0001",
-                    "help": "Constant for regularization"
-                }
-            },
-            "Gradient Boosting": {
-                "n_estimators": {
-                    "type": "numeric",
-                    "default": "100",
-                    "help": "Number of boosting stages"
-                },
-                "learning_rate": {
-                    "type": "numeric",
-                    "default": "0.1",
-                    "help": "Learning rate (0.01-1.0 typical)"
-                },
-                "max_depth": {
-                    "type": "numeric",
-                    "default": "3",
-                    "help": "Max depth (1-10 typical)"
-                }
-            },
-            "AdaBoost": {
-                "n_estimators": {
-                    "type": "numeric",
-                    "default": "100",
-                    "help": "Number of boosting stages"
-                },
-                "learning_rate": {
-                    "type": "numeric",
-                    "default": "1.0",
-                    "help": "Weight applied to each classifier"
-                }
-            },
-            "XGBoost": {
-                "n_estimators": {
-                    "type": "numeric",
-                    "default": "100",
-                    "help": "Number of boosting rounds"
-                },
-                "learning_rate": {
-                    "type": "numeric",
-                    "default": "0.1",
-                    "help": "Step size shrinkage (0.01-0.3 typical)"
-                },
-                "max_depth": {
-                    "type": "numeric",
-                    "default": "3",
-                    "help": "Max tree depth (1-10 typical)"
-                }
-            }
-        }
+    def _create_param_widget(self, group, clf_name, param_name, info):
+        """Helper method to create parameter widgets"""
+        param_type = info["type"]
+        default_value = info["default"]
+        param_help = info["help"]
 
-        self.hyperparam_entries = {}
-        for clf_name, param_dict in self.param_config.items():
-            group = ttk.LabelFrame(scroll_frame, text=clf_name)
-            group.pack(fill=tk.X, padx=5, pady=5)
+        row_frame = ttk.Frame(group)
+        row_frame.pack(fill=tk.X, pady=2)
 
-            self.hyperparam_entries[clf_name] = {}
-            for param_name, info in param_dict.items():
-                param_type = info["type"]
-                default_value = info["default"]
-                param_help = info["help"]
+        lbl = ttk.Label(row_frame, text=param_name + ":")
+        lbl.pack(side=tk.LEFT, padx=5)
 
-                row_frame = ttk.Frame(group)
-                row_frame.pack(fill=tk.X, pady=2)
+        if param_type == "combo":
+            combo = ttk.Combobox(row_frame, values=info["options"], state="readonly", width=15)
+            combo.set(default_value)
+            combo.pack(side=tk.LEFT, padx=5)
+            self.hyperparam_entries[clf_name][param_name] = combo
 
-                lbl = ttk.Label(row_frame, text=param_name + ":")
-                lbl.pack(side=tk.LEFT, padx=5)
+        elif param_type in ["numeric", "text"]:
+            entry = ttk.Entry(row_frame, width=8)
+            entry.insert(0, str(default_value))
+            entry.pack(side=tk.LEFT, padx=5)
+            self.hyperparam_entries[clf_name][param_name] = entry
 
-                if param_type == "combo":
-                    combo = ttk.Combobox(row_frame, values=info["options"], state="readonly", width=15)
-                    combo.set(default_value)
-                    combo.pack(side=tk.LEFT, padx=5)
-                    self.hyperparam_entries[clf_name][param_name] = combo
-
-                elif param_type == "numeric":
-                    entry = ttk.Entry(row_frame, width=10)
-                    entry.insert(0, str(default_value))
-                    entry.pack(side=tk.LEFT, padx=5)
-                    self.hyperparam_entries[clf_name][param_name] = entry
-
-                elif param_type == "text":
-                    entry = ttk.Entry(row_frame, width=15)
-                    entry.insert(0, str(default_value))
-                    entry.pack(side=tk.LEFT, padx=5)
-                    self.hyperparam_entries[clf_name][param_name] = entry
-
-                help_label = ttk.Label(row_frame, text=f"({param_help})", foreground="gray")
-                help_label.pack(side=tk.LEFT, padx=5)
+        help_label = ttk.Label(row_frame, text=f"({param_help})", foreground="gray")
+        help_label.pack(side=tk.LEFT, padx=5)
 
     # ------------------------------------------------------------------------
     # Tab 4: Results
