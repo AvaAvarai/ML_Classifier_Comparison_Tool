@@ -606,7 +606,7 @@ class ClassifierApp:
     # ------------------------------------------------------------------------
     def build_plot_tab(self):
         """
-        Build the Plot tab with a toggle button for normalization and an area for embedding the plot.
+        Build the Plot tab with toggle button for normalization, export button, and an area for embedding the plot.
         """
         # Frame for controls
         controls_frame = ttk.Frame(self.plot_tab)
@@ -620,6 +620,14 @@ class ClassifierApp:
             command=self.toggle_normalization
         )
         self.normalize_button.pack(side=tk.LEFT, padx=5)
+
+        # Export plot button
+        self.export_plot_button = ttk.Button(
+            controls_frame,
+            text="Export Plot",
+            command=self.export_plot
+        )
+        self.export_plot_button.pack(side=tk.LEFT, padx=5)
 
         # Placeholder label for plot area
         self.plot_placeholder = tk.Label(self.plot_tab, text="Parallel Coordinates will be shown here.")
@@ -707,6 +715,33 @@ class ClassifierApp:
 
         # Switch to the Plot tab
         self.notebook.select(self.plot_tab)
+
+    def export_plot(self):
+        """Save the current plot to a PNG file"""
+        if not hasattr(self, 'plot_canvas') or not self.plot_canvas:
+            messagebox.showerror("Error", "No plot to export.")
+            return
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG files", "*.png")]
+        )
+        if not file_path:
+            return
+
+        try:
+            # Get the figure from the canvas
+            fig = self.plot_canvas.figure
+            
+            # Save with tight layout to prevent cutoff
+            fig.savefig(
+                file_path,
+                bbox_inches='tight',
+                dpi=300
+            )
+            messagebox.showinfo("Success", "Plot exported successfully.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export plot: {str(e)}")
 
     # ------------------------------------------------------------------------
     # Running classifiers
