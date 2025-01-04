@@ -1,10 +1,19 @@
 # Machine Learning Classifier Comparison Tool
 
-![image](image.png)
-
 The **Machine Learning Classifier Comparison Tool** helps benchmark and compare the performance of various machine learning classifiers on a dataset. It supports optional evaluation data, cross-validation (or none if splits = 1), and an embedded parallel-coordinates visualization of the final results.
 
-![results](results_plot.png)
+Load the train and evaluation datasets, select the classifiers, set the hyperparameters, and run the experiment.
+
+![Load Data](demo_images/data_load.png)
+
+![Select Classifiers](demo_images/classifiers_select.png)
+
+![Select Parameters](demo_images/parameters_select.png)
+
+The results are displayed in a table and can be exported to a CSV file the value in parentheses is the difference from the train and the evaluation dataset for synthetic data evaluation.
+![Analyze Results](demo_images/results_table.png)
+
+![Visualize Results](demo_images/results_plot.png)
 
 ## Features
 
