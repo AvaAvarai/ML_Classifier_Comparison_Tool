@@ -162,6 +162,10 @@ class ClassifierApp:
             messagebox.showerror("Error", f"Failed to load eval file: {e}")
 
     def find_class_column(self, df):
+        """
+        Find the class column in the dataset.
+        Looks for any column containing 'class' in its name (case-insensitive).
+        """
         for col in df.columns:
             if "class" in col.lower():
                 return col
@@ -185,7 +189,7 @@ class ClassifierApp:
             f"Number of Classes: {num_classes}\n"
             f"Class case counts: {class_counts.to_dict()}\n"
             f"Class balance: {balance_ratio:.2f} (Majority class: {majority_class})\n"
-            f"Classes: {', '.join(map(str, df[class_col].unique()))}\n\n"
+            f"Classes: {', '.join(map(str, sorted(df[class_col].unique())))}\n\n"
             f"Dataset Type: {dataset_type.upper()}\n"
             f"Feature Types:\n"
             f"{chr(10).join(f'  {col}: {dtype}' for col, dtype in sorted(type_analysis.items()))}\n\n"
@@ -207,7 +211,7 @@ class ClassifierApp:
                 f"Number of Classes: {eval_num_classes}\n"
                 f"Class case counts: {eval_class_counts.to_dict()}\n"
                 f"Class balance: {eval_balance_ratio:.2f} (Majority class: {eval_majority_class})\n"
-                f"Classes: {', '.join(map(str, self.eval_data[self.eval_class_column].unique()))}\n\n"
+                f"Classes: {', '.join(map(str, sorted(self.eval_data[self.eval_class_column].unique())))}\n\n"
                 f"Dataset Type: {eval_dataset_type.upper()}\n"
                 f"Feature Types:\n"
                 f"{chr(10).join(f'  {col}: {dtype}' for col, dtype in sorted(eval_type_analysis.items()))}\n\n"
@@ -918,19 +922,56 @@ class ClassifierApp:
             X_main = self.data.drop(columns=self.class_column)
             y_main = self.data[self.class_column]
 
-            # Label-encode main data if needed
-            if y_main.dtype == object or y_main.dtype.kind in {'U', 'S'}:
-                self.label_encoder = LabelEncoder()
-                y_main = self.label_encoder.fit_transform(y_main)
+            # Label-encode main data if needed (handle both string and integer class names)
+            try:
+                if y_main.dtype == object or y_main.dtype.kind in {'U', 'S'}:
+                    # String class names - need encoding
+                    self.label_encoder = LabelEncoder()
+                    y_main = self.label_encoder.fit_transform(y_main)
+                elif y_main.dtype.kind in {'i', 'u'}:
+                    # Integer class names - ensure they start from 0 for sklearn compatibility
+                    unique_classes = sorted(y_main.unique())
+                    if unique_classes[0] != 0:
+                        # Create a mapping to shift classes to start from 0
+                        class_mapping = {old: new for new, old in enumerate(unique_classes)}
+                        y_main = y_main.map(class_mapping)
+                        # Store the mapping for potential reverse transformation
+                        self.class_mapping = class_mapping
+                    else:
+                        self.class_mapping = None
+                else:
+                    # Other numeric types - convert to int and ensure 0-based indexing
+                    y_main = y_main.astype(int)
+                    unique_classes = sorted(y_main.unique())
+                    if unique_classes[0] != 0:
+                        class_mapping = {old: new for new, old in enumerate(unique_classes)}
+                        y_main = y_main.map(class_mapping)
+                        self.class_mapping = class_mapping
+                    else:
+                        self.class_mapping = None
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to process class column: {str(e)}\n\nPlease ensure the class column contains valid class labels.")
+                return
 
             # Check if we have optional eval data
             use_eval = (self.eval_data is not None)
             if use_eval:
                 X_eval = self.eval_data.drop(columns=self.eval_class_column)
                 y_eval = self.eval_data[self.eval_class_column]
-                # Encode eval data with same encoder
-                if y_eval.dtype == object or y_eval.dtype.kind in {'U', 'S'}:
-                    y_eval = self.label_encoder.transform(y_eval)
+                # Apply same encoding/mapping as training data
+                try:
+                    if hasattr(self, 'label_encoder'):
+                        # String class names - use the fitted encoder
+                        y_eval = self.label_encoder.transform(y_eval)
+                    elif hasattr(self, 'class_mapping') and self.class_mapping is not None:
+                        # Integer class names - apply the same mapping
+                        y_eval = y_eval.map(self.class_mapping)
+                    elif y_eval.dtype.kind not in {'i', 'u'}:
+                        # Other numeric types - convert to int
+                        y_eval = y_eval.astype(int)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to process evaluation class column: {str(e)}\n\nPlease ensure the evaluation class column is compatible with the training data.")
+                    return
 
             # Create separate lists for training and evaluation results
             self.train_results = []
@@ -1059,6 +1100,13 @@ class ClassifierApp:
             self.status_label['text'] = "Completed!"
             self.progress_bar['value'] = total_operations
             self.root.update()
+
+            # Show class mapping information if applicable
+            if hasattr(self, 'class_mapping') and self.class_mapping is not None:
+                mapping_info = "Class mapping applied:\n"
+                for original, mapped in sorted(self.class_mapping.items()):
+                    mapping_info += f"  {original} → {mapped}\n"
+                messagebox.showinfo("Class Mapping Applied", mapping_info)
 
             if convergence_issues:
                 messagebox.showinfo(
@@ -1326,6 +1374,19 @@ class ClassifierApp:
             f.write(f"Run Count,{self.run_count.get()}\n")
             f.write(f"Random Seed,{self.random_seed.get()}\n")
             f.write(f"CV Split Count,{self.cross_val_split.get()}\n\n")
+            
+            # Add class mapping information if applicable
+            if hasattr(self, 'class_mapping') and self.class_mapping is not None:
+                f.write("Class Mapping (Original → Mapped)\n")
+                for original, mapped in sorted(self.class_mapping.items()):
+                    f.write(f"{original},{mapped}\n")
+                f.write("\n")
+            elif hasattr(self, 'label_encoder'):
+                f.write("Class Mapping (Original → Mapped)\n")
+                for i, original in enumerate(self.label_encoder.classes_):
+                    f.write(f"{original},{i}\n")
+                f.write("\n")
+            
             f.write("Dataset Statistics\n")
             for stat in train_stats:
                 f.write(",".join(map(str, stat)) + "\n")
